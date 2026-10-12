@@ -412,12 +412,12 @@ function ImagePicker(
         <Button onPress={dialog.dismiss}>Cancel</Button>
         <Button
           prominence="high"
-          isDisabled={tab !== 'library' || !image}
+          isDisabled={tab !== 'library' || !image || !bytes}
           onPress={() => {
-            if (!image) return;
+            if (!image || !bytes) return;
             props.onPick({
               path: image.path,
-              bytes: bytes ?? new Uint8Array(),
+              bytes,
               alt,
               title: caption,
             });

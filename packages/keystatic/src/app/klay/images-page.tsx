@@ -344,7 +344,7 @@ function ImageDetails(props: {
             </FileTrigger>
             <Button
               tone="critical"
-              isDisabled={!bytes || props.busy}
+              isDisabled={!bytes || !props.pages || props.busy}
               onPress={() => bytes && props.onRemove(bytes)}
             >
               Remove…

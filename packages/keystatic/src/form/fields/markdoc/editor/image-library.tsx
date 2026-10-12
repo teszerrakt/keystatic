@@ -60,9 +60,23 @@ export function libraryImageNode(
   });
 }
 
+// A library picture picked from the page's own folder is saved as the
+// page's own file: the save deletes any folder file it does not write.
+export function pageImageFilename(node: Node, slug: string | undefined) {
+  const { fromLibrary, filename, src } = node.attrs;
+  if (!fromLibrary || slug === undefined || !src.byteLength) return;
+  return filename.startsWith(`${slug}/`)
+    ? filename.slice(slug.length + 1)
+    : undefined;
+}
+
 // The encoded src of a library picture node; undefined for any other image.
-export function librarySrc(config: EditorConfig, node: Node) {
-  if (!node.attrs.fromLibrary) return;
+export function librarySrc(
+  config: EditorConfig,
+  node: Node,
+  slug: string | undefined
+) {
+  if (!node.attrs.fromLibrary || pageImageFilename(node, slug)) return;
   return encodeURI(`${srcBase(config)}${node.attrs.filename}`);
 }
 

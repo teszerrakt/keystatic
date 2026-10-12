@@ -166,3 +166,32 @@ test('without a library, a reference shows its path instead of a blank image', (
     `Image from ${dir}/shared/hero.png (not editable here)`
   );
 });
+
+test('a library pick from the page’s own folder is saved as the page’s file', () => {
+  const pick = (bytes: Uint8Array) =>
+    schema.nodes.doc.create(
+      {},
+      schema.nodes.paragraph.create(
+        {},
+        schema.schema.nodes.image.create(
+          libraryImageAttrs(schema.config, {
+            path: `${dir}/page/own.png`,
+            bytes,
+            alt: 'Own',
+            title: '',
+          })
+        )
+      )
+    );
+  const own = save(pick(new Uint8Array([1])), 'page');
+  expect([...own.files.keys()]).toEqual(['own.png']);
+  expect(own.text.trim()).toBe(
+    '![Own](../../../assets/images/docs/page/own.png)'
+  );
+  // From another page it stays a reference.
+  const other = save(pick(new Uint8Array([1])), 'other');
+  expect(other.files.size).toBe(0);
+  expect(other.text.trim()).toBe(
+    '![Own](../../../assets/images/docs/page/own.png)'
+  );
+});

@@ -2,7 +2,7 @@ import { Ast, Node as MarkdocNode, NodeType } from '#markdoc';
 import { Fragment, Mark, Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorSchema, getEditorSchema } from '../schema';
 import { getSrcPrefixForImageBlock } from '../images';
-import { librarySrc } from '../image-library';
+import { librarySrc, pageImageFilename } from '../image-library';
 import { fixPath } from '../../../../../app/path-utils';
 import { internalToSerialized } from '../props-serialization';
 import { textblockChildren } from '../serialize-inline';
@@ -51,7 +51,7 @@ function getLeafContent(
   if (node.type === schema.nodes.hard_break) {
     return new Ast.Node('hardbreak');
   }
-  const library = librarySrc(state.schema.config, node);
+  const library = librarySrc(state.schema.config, node, state.slug);
   if (node.type === schema.nodes.image && library) {
     return new Ast.Node('image', {
       src: library,
@@ -60,7 +60,8 @@ function getLeafContent(
     });
   }
   if (node.type === schema.nodes.image) {
-    const { src, filename } = node.attrs;
+    const { src } = node.attrs;
+    const filename = pageImageFilename(node, state.slug) ?? node.attrs.filename;
 
     if (
       typeof state.schema.config.image === 'object' &&
@@ -77,9 +78,10 @@ function getLeafContent(
 
     return new Ast.Node('image', {
       src: encodeURI(
-        `${getSrcPrefixForImageBlock(state.schema.config, state.slug)}${
-          node.attrs.filename
-        }`
+        `${getSrcPrefixForImageBlock(
+          state.schema.config,
+          state.slug
+        )}${filename}`
       ),
       alt: node.attrs.alt,
       title: node.attrs.title,

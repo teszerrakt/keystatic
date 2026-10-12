@@ -1,7 +1,7 @@
 import { Fragment, Mark, Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorSchema, getEditorSchema } from '../schema';
 import { getSrcPrefixForImageBlock } from '../images';
-import { librarySrc } from '../image-library';
+import { librarySrc, pageImageFilename } from '../image-library';
 import { fixPath } from '../../../../../app/path-utils';
 import { PhrasingContent, ListItem, BlockContent, Root } from 'mdast';
 import { MdxJsxAttribute } from 'mdast-util-mdx';
@@ -62,7 +62,7 @@ function getLeafContent(
   if (node.type === schema.nodes.hard_break) {
     return { type: 'break' };
   }
-  const library = librarySrc(state.schema.config, node);
+  const library = librarySrc(state.schema.config, node, state.slug);
   if (node.type === schema.nodes.image && library) {
     return {
       type: 'image',
@@ -72,7 +72,8 @@ function getLeafContent(
     };
   }
   if (node.type === schema.nodes.image) {
-    const { src, filename } = node.attrs;
+    const { src } = node.attrs;
+    const filename = pageImageFilename(node, state.slug) ?? node.attrs.filename;
 
     if (
       typeof state.schema.config.image === 'object' &&
@@ -90,9 +91,10 @@ function getLeafContent(
     return {
       type: 'image',
       url: encodeURI(
-        `${getSrcPrefixForImageBlock(state.schema.config, state.slug)}${
-          node.attrs.filename
-        }`
+        `${getSrcPrefixForImageBlock(
+          state.schema.config,
+          state.slug
+        )}${filename}`
       ),
       alt: node.attrs.alt,
       title: node.attrs.title,
