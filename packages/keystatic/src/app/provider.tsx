@@ -14,6 +14,7 @@ import {
 import { cacheExchange } from '@urql/exchange-graphcache';
 import { authExchange } from '@urql/exchange-auth';
 import { getAuth, getSyncAuth } from './auth';
+import { authPlugin } from './klay/auth';
 import { CloudAppShellQuery, GitHubAppShellQuery } from './shell/data';
 import { persistedExchange } from '@urql/exchange-persisted';
 import { relayPagination } from '@urql/exchange-graphcache/extras';
@@ -39,7 +40,8 @@ export function createUrqlClient(config: Config): Client {
   return createClient({
     url:
       config.storage.kind === 'github'
-        ? 'https://api.github.com/graphql'
+        ? authPlugin(config.storage).graphqlUrl ??
+          'https://api.github.com/graphql'
         : `${KEYSTATIC_CLOUD_API_URL}/v1/github/graphql`,
     requestPolicy: 'cache-and-network',
     exchanges: [
@@ -69,7 +71,7 @@ export function createUrqlClient(config: Config): Client {
               !authState
             ) {
               if (config.storage.kind === 'github') {
-                window.location.href = '/api/keystatic/github/login';
+                window.location.href = authPlugin(config.storage).loginUrl();
               } else {
                 redirectToCloudAuth('', config);
               }

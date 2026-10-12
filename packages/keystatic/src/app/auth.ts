@@ -1,6 +1,6 @@
-import { parse } from 'cookie';
 import * as s from 'superstruct';
 import { Config } from '../config';
+import { authPlugin } from './klay/auth';
 
 const storedTokenSchema = s.object({
   token: s.string(),
@@ -13,12 +13,8 @@ export function getSyncAuth(config: Config) {
     return null;
   }
   if (config.storage.kind === 'github') {
-    const cookies = parse(document.cookie);
-    const accessToken = cookies['keystatic-gh-access-token'];
-    if (!accessToken) {
-      return null;
-    }
-    return { accessToken };
+    const accessToken = authPlugin(config.storage).getToken();
+    return accessToken ? { accessToken } : null;
   }
   if (config.storage.kind === 'cloud') {
     return getCloudAuth(config);
@@ -56,15 +52,9 @@ export async function getAuth(config: Config) {
     if (!_refreshTokenPromise) {
       _refreshTokenPromise = (async () => {
         try {
-          const res = await fetch('/api/keystatic/github/refresh-token', {
-            method: 'POST',
-          });
-          if (res.status === 200) {
-            const cookies = parse(document.cookie);
-            const accessToken = cookies['keystatic-gh-access-token'];
-            if (accessToken) {
-              return { accessToken };
-            }
+          if (config.storage.kind === 'github') {
+            const accessToken = await authPlugin(config.storage).refresh();
+            if (accessToken) return { accessToken };
           }
         } catch {
         } finally {

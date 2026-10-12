@@ -42,12 +42,17 @@ import {
 } from './shell/data';
 import { KeystaticCloudAuthCallback } from './cloud-auth-callback';
 import { getAuth } from './auth';
+import { authPlugin } from './klay/auth';
+import { ReviewPage } from './klay/review-page';
 import { assertValidRepoConfig } from './repo-config';
 import { NotFoundBoundary, notFound } from './not-found';
 
 function parseParamsWithoutBranch(params: string[]) {
   if (params.length === 0) {
     return {};
+  }
+  if (params.length === 1 && params[0] === 'publish') {
+    return { klay: 'publish' as const };
   }
   if (params.length === 2 && params[0] === 'singleton') {
     return { singleton: params[1] };
@@ -73,7 +78,7 @@ function RedirectToBranch(props: { config: Config }) {
   useEffect(() => {
     if (error?.response?.status === 401) {
       if (props.config.storage.kind === 'github') {
-        window.location.href = '/api/keystatic/github/login';
+        window.location.href = authPlugin(props.config.storage).loginUrl();
       } else {
         redirectToCloudAuth('', props.config);
       }
@@ -163,6 +168,8 @@ function PageInner({ config }: { config: Config }) {
       >
         {parsedParams === null ? (
           <AlwaysNotFound />
+        ) : 'klay' in parsedParams ? (
+          <ReviewPage />
         ) : parsedParams.collection ? (
           parsedParams.kind === 'create' ? (
             <CreateItem
@@ -230,22 +237,21 @@ function AuthWrapper(props: {
   }
   if (state === 'explicit-auth') {
     if (props.config.storage.kind === 'github') {
+      const auth = authPlugin(props.config.storage);
       return (
         <Flex justifyContent="center" alignItems="center" height="100vh">
           <Button
-            href={`/api/keystatic/github/login${
+            href={auth.loginUrl(
               router.params.length
-                ? `?${new URLSearchParams({
-                    from: router.params.map(encodeURIComponent).join('/'),
-                  })}`
-                : ''
-            }`}
+                ? router.params.map(encodeURIComponent).join('/')
+                : undefined
+            )}
             // even though we'll never be in an iframe, so this isn't really distinct from _self
             // it makes react-aria avoid using client-side routing which we need here
             target="_top"
           >
-            <Icon src={githubIcon} />
-            <Text>Log in with GitHub</Text>
+            {auth.id === 'github' && <Icon src={githubIcon} />}
+            <Text>{auth.label}</Text>
           </Button>
         </Flex>
       );

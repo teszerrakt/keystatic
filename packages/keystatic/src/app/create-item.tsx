@@ -19,6 +19,7 @@ import { clientSideValidateProp } from '../form/errors';
 import { useEventCallback } from '../form/fields/document/DocumentEditor/ui-utils';
 
 import { CreateBranchDuringUpdateDialog } from './ItemPage';
+import { BranchDialogContainer } from './klay/drafts';
 import l10nMessages from './l10n';
 import { useBaseCommit, useCurrentBranch } from './shell/data';
 import { PageRoot, PageHeader, PageBody } from './shell/page';
@@ -584,7 +585,7 @@ function CreateItemInner(props: {
         </Flex>
       </PageRoot>
 
-      <DialogContainer
+      <BranchDialogContainer
         // ideally this would be a popover on desktop but using a DialogTrigger
         // wouldn't work since this doesn't open on click but after doing a
         // network request and it failing and manually wiring about a popover
@@ -615,10 +616,11 @@ function CreateItemInner(props: {
               }
             }}
             reason={createResult.reason}
+            suggestedName={getSlugFromState(collectionConfig, props.state)}
             onDismiss={props.resetCreateItemState}
           />
         )}
-      </DialogContainer>
+      </BranchDialogContainer>
       <DialogContainer
         // ideally this would be a popover on desktop but using a DialogTrigger
         // wouldn't work since this doesn't open on click but after doing a

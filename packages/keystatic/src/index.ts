@@ -17,3 +17,5 @@ export type {
   LocalConfig,
   Singleton,
 } from './config';
+export { githubAuth } from './app/klay/auth';
+export type { AuthPlugin } from './app/klay/auth';

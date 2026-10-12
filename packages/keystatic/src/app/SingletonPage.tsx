@@ -1,4 +1,6 @@
 import { useRouter } from './router';
+import { fillPreviewUrl } from './klay/draft-data';
+import { BranchDialogContainer } from './klay/drafts';
 import {
   FormEvent,
   ReactElement,
@@ -96,7 +98,7 @@ function SingletonPageInner(
 
   const previewHref = useMemo(() => {
     if (!singletonConfig.previewUrl) return undefined;
-    return singletonConfig.previewUrl.replace('{branch}', currentBranch);
+    return fillPreviewUrl(singletonConfig.previewUrl, currentBranch);
   }, [currentBranch, singletonConfig.previewUrl]);
   const isGitHub = isGitHubConfig(props.config) || isCloudConfig(props.config);
   const formatInfo = getSingletonFormat(props.config, props.singleton);
@@ -295,7 +297,7 @@ function SingletonPageInner(
           formatInfo={formatInfo}
           slugField={undefined}
         />
-        <DialogContainer
+        <BranchDialogContainer
           // ideally this would be a popover on desktop but using a DialogTrigger wouldn't work since
           // this doesn't open on click but after doing a network request and it failing and manually wiring about a popover and modal would be a pain
           onDismiss={props.onResetUpdateItem}
@@ -315,7 +317,7 @@ function SingletonPageInner(
               onDismiss={props.onResetUpdateItem}
             />
           )}
-        </DialogContainer>
+        </BranchDialogContainer>
         <DialogContainer
           // ideally this would be a popover on desktop but using a DialogTrigger
           // wouldn't work since this doesn't open on click but after doing a
