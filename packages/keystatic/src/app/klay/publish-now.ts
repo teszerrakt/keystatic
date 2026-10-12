@@ -30,12 +30,15 @@ export function publishNowPlan(input: {
   // What the save itself changes against the live site, besides the page's
   // own file; then the page's text.
   saving: FileChange[];
+  // Files the save deletes that were never live: no longer a change.
+  dropped: string[];
   pageText: string;
 }): PublishNowPlan {
   const isPage = (p: PageChange) =>
     p.collection === input.page.collection && p.slug === input.page.slug;
 
   const changed = new Map(input.files.map(f => [f.path, f.kind]));
+  for (const path of input.dropped) changed.delete(path);
   for (const f of input.saving) {
     if (!changed.has(f.path)) changed.set(f.path, f.kind);
   }

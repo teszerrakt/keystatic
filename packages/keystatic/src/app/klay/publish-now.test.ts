@@ -8,6 +8,7 @@ const base = {
   pages: [],
   files: [],
   saving: [],
+  dropped: [],
   pageText: 'We started Klay.',
 };
 
@@ -110,4 +111,21 @@ test('the pull request note marks a Publish now', () => {
   expect(isPublishNow(`Some text\n\n${publishNowNote}`)).toBe(true);
   expect(isPublishNow('Published from the docs editor.')).toBe(false);
   expect(isPublishNow(null)).toBe(false);
+});
+
+test('a draft picture the save drops is no longer a change', () => {
+  const plan = publishNowPlan({
+    ...base,
+    pages: [{ ...page, kind: 'changed' }],
+    files: [{ path: 'src/assets/images/docs/about-us/old.png', kind: 'added' }],
+    saving: [
+      {
+        path: 'src/assets/images/docs/about-us/new.png',
+        kind: 'added' as const,
+      },
+    ],
+    dropped: ['src/assets/images/docs/about-us/old.png'],
+  });
+  expect(plan.allowed).toBe(true);
+  expect(plan.pictures.map(p => p.title)).toEqual(['New']);
 });

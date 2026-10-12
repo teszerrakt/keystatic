@@ -67,10 +67,11 @@ function usePlanPublishNow(page: Page) {
     }
     // Other files the save drops are this page's own; only pictures show.
     const kept = new Set([own, ...others].map(f => f.path));
+    const dropped: string[] = [];
     for (const path of page.initialFiles) {
-      if (!kept.has(path) && PICTURE.test(path) && live.entries.has(path)) {
-        saving.push({ path, kind: 'removed' });
-      }
+      if (kept.has(path)) continue;
+      if (!live.entries.has(path)) dropped.push(path);
+      else if (PICTURE.test(path)) saving.push({ path, kind: 'removed' });
     }
     return publishNowPlan({
       page,
@@ -83,6 +84,7 @@ function usePlanPublishNow(page: Page) {
         ),
       }),
       saving,
+      dropped,
       pageText: new TextDecoder().decode(own.contents),
     });
   };
