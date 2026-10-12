@@ -118,6 +118,8 @@ export function useUpsertItem(args: {
   currentLocalTreeKey: string | undefined;
   basePath: string;
   slug: { value: string; field: string } | undefined;
+  /** Klay fork: other files to write in the same commit. */
+  extras?: { files(): { path: string; contents: Uint8Array }[] };
 }) {
   const [state, setState] = useState<
     | { kind: 'idle' }
@@ -164,10 +166,12 @@ export function useUpsertItem(args: {
           format: args.format,
           state: args.state,
           slug: args.slug,
-        }).map(addition => ({
-          ...addition,
-          path: pathPrefix + addition.path,
-        }));
+        })
+          .concat(args.extras?.files() ?? [])
+          .map(addition => ({
+            ...addition,
+            path: pathPrefix + addition.path,
+          }));
 
         const additionPathToSha = new Map(
           await Promise.all(

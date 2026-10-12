@@ -21,6 +21,7 @@ import { useDraftsContext, useNow } from './draft-data';
 import { draftPrefix } from './drafts';
 import { Draft, draftStatus } from './draft-status';
 import { ago, pageFromCommit } from './pages';
+import { useMenuSetup } from './menu-sections-data';
 import { useLanguages } from './pages-data';
 import { humanize } from './review';
 
@@ -106,6 +107,7 @@ export function HomePage() {
   const repoInfo = useRepoInfo();
   const branch = useCurrentBranch();
   const languages = useLanguages();
+  const menu = useMenuSetup();
   const now = useNow(60_000);
   const router = useRouter();
   const [discarding, setDiscarding] = useState<Draft | null>(null);
@@ -163,6 +165,8 @@ export function HomePage() {
                   ? `${draftBase}/collection/${encodeURIComponent(
                       page.collection
                     )}/item/${encodeURIComponent(page.slug)}`
+                  : menu && d.lastSave === `Update ${menu.path}`
+                  ? `${draftBase}/menu-sections`
                   : `${draftBase}/pages`;
               return (
                 <article key={d.name} className={card}>

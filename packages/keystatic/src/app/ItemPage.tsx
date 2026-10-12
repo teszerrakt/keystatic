@@ -59,6 +59,9 @@ import {
   useDraftSaveCopy,
 } from './klay/drafts';
 import { fillPreviewUrl } from './klay/draft-data';
+import { DeletePageDialog } from './klay/page-delete-dialog';
+import { PageFormProvider, useCommitExtras } from './klay/page-form';
+import { PageTitle, pageTitleFrom } from './klay/page-title';
 import l10nMessages from './l10n';
 import { NotFoundBoundary, notFound } from './not-found';
 import { getDataFileExtension, getPathPrefix } from './path-utils';
@@ -264,6 +267,15 @@ function ItemPageInner(
             onReset={props.onReset}
             viewHref={viewHref}
             previewHref={previewHref}
+            deleteDialog={
+              isDraftsOnly(config) ? (
+                <DeletePageDialog
+                  slug={itemSlug}
+                  collection={collection}
+                  title={pageTitleFrom(collectionConfig, props.state, itemSlug)}
+                />
+              ) : undefined
+            }
           />
         }
         {...props}
@@ -429,6 +441,7 @@ function LocalItemPage(
   const slug = getSlugFromState(collectionConfig, state);
   const formatInfo = getCollectionFormat(config, collection);
   const futureBasePath = getCollectionItemPath(config, collection, slug);
+  const extras = useCommitExtras();
   const [updateResult, _update, resetUpdateItem] = useUpsertItem({
     state,
     initialFiles,
@@ -438,6 +451,7 @@ function LocalItemPage(
     format: formatInfo,
     currentLocalTreeKey: localTreeKey,
     slug: { field: collectionConfig.slugField, value: slug },
+    extras,
   });
 
   useEffect(() => {
@@ -479,16 +493,23 @@ function LocalItemPage(
     setState({ state: initialState, localTreeKey });
   };
   return (
-    <ItemPageInner
-      {...props}
-      onUpdate={update}
-      onReset={onReset}
-      updateResult={updateResult}
-      onResetUpdateItem={resetUpdateItem}
-      previewProps={previewProps}
+    <PageFormProvider
+      collection={collection}
+      slug={props.itemSlug}
       state={state}
-      hasChanged={hasChanged}
-    />
+      extras={extras}
+    >
+      <ItemPageInner
+        {...props}
+        onUpdate={update}
+        onReset={onReset}
+        updateResult={updateResult}
+        onResetUpdateItem={resetUpdateItem}
+        previewProps={previewProps}
+        state={state}
+        hasChanged={hasChanged}
+      />
+    </PageFormProvider>
   );
 }
 
@@ -558,6 +579,7 @@ function HeaderActions(props: {
   onPaste: () => void;
   previewHref?: string;
   viewHref?: string;
+  deleteDialog?: ReactElement;
 }) {
   let {
     formID,
@@ -574,6 +596,7 @@ function HeaderActions(props: {
   const isBelowDesktop = useMediaQuery(breakpointQueries.below.desktop);
   const stringFormatter = useLocalizedStringFormatter(l10nMessages);
   const draftCopy = useDraftSaveCopy();
+  const draftsOnly = !!draftCopy;
   const [deleteAlertIsOpen, setDeleteAlertOpen] = useState(false);
   const [duplicateAlertIsOpen, setDuplicateAlertOpen] = useState(false);
   const menuActions = useMemo(() => {
@@ -594,7 +617,7 @@ function HeaderActions(props: {
       },
       {
         key: 'delete',
-        label: 'Delete entry…', // TODO: l10n
+        label: draftsOnly ? 'Delete page…' : 'Delete entry…', // TODO: l10n
         icon: trash2Icon,
       },
       {
@@ -635,7 +658,7 @@ function HeaderActions(props: {
     }
 
     return items;
-  }, [previewHref, viewHref]);
+  }, [previewHref, viewHref, draftsOnly]);
 
   const indicatorElement = (() => {
     if (isLoading) {
@@ -727,18 +750,19 @@ function HeaderActions(props: {
         {draftCopy?.save ?? stringFormatter.format('save')}
       </Button>
       <DialogContainer onDismiss={() => setDeleteAlertOpen(false)}>
-        {deleteAlertIsOpen && (
-          <AlertDialog
-            title="Delete entry"
-            tone="critical"
-            cancelLabel="Cancel"
-            primaryActionLabel="Yes, delete"
-            autoFocusButton="cancel"
-            onPrimaryAction={onDelete}
-          >
-            Are you sure? This action cannot be undone.
-          </AlertDialog>
-        )}
+        {deleteAlertIsOpen &&
+          (props.deleteDialog ?? (
+            <AlertDialog
+              title="Delete entry"
+              tone="critical"
+              cancelLabel="Cancel"
+              primaryActionLabel="Yes, delete"
+              autoFocusButton="cancel"
+              onPrimaryAction={onDelete}
+            >
+              Are you sure? This action cannot be undone.
+            </AlertDialog>
+          ))}
       </DialogContainer>
       <DialogContainer onDismiss={() => setDuplicateAlertOpen(false)}>
         {duplicateAlertIsOpen && (
@@ -1070,6 +1094,7 @@ function ItemPageShell(
   props: ItemPageWrapperProps & {
     children: ReactNode;
     headerActions?: ReactNode;
+    state?: Record<string, unknown>;
   }
 ) {
   const collectionConfig = getCollection(props.config, props.collection);
@@ -1086,7 +1111,16 @@ function ItemPageShell(
   return (
     <PageRoot containerWidth={containerWidthForEntryLayout(collectionConfig)}>
       <PageHeader>
-        <HeaderBreadcrumbs items={breadcrumbItems} />
+        {isDraftsOnly(props.config) ? (
+          <PageTitle
+            collection={props.collection}
+            slug={props.itemSlug}
+            basePath={props.basePath}
+            title={pageTitleFrom(collectionConfig, props.state, props.itemSlug)}
+          />
+        ) : (
+          <HeaderBreadcrumbs items={breadcrumbItems} />
+        )}
         {props.headerActions}
       </PageHeader>
 

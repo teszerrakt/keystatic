@@ -24,6 +24,7 @@ export { slug } from './slug';
 export { text } from './text';
 export { url } from './url';
 export { ignored } from './ignored';
+export { menuSection, menuOrder } from './menuSection';
 
 // NOTE: must be the last export to avoid circular dependencies
 export { mdx, markdoc } from './markdoc';

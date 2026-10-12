@@ -20,6 +20,9 @@ import { useEventCallback } from '../form/fields/document/DocumentEditor/ui-util
 
 import { CreateBranchDuringUpdateDialog } from './ItemPage';
 import { BranchDialogContainer } from './klay/drafts';
+import { PageFormProvider, useCommitExtras } from './klay/page-form';
+import { useCreateBreadcrumbs } from './klay/page-title';
+import { translatedState, translateFrom } from './klay/translate';
 import l10nMessages from './l10n';
 import { useBaseCommit, useCurrentBranch } from './shell/data';
 import { PageRoot, PageHeader, PageBody } from './shell/page';
@@ -77,6 +80,14 @@ function CreateItemWrapper(props: {
     () => getCollectionFormat(props.config, props.collection),
     [props.config, props.collection]
   );
+  const from = translateFrom(router.href);
+  const source =
+    from && props.config.collections?.[from] ? from : props.collection;
+  const sourceConfig = props.config.collections![source]!;
+  const sourceFormat = useMemo(
+    () => getCollectionFormat(props.config, source),
+    [props.config, source]
+  );
 
   const draftData = useData(
     useCallback(async () => {
@@ -112,12 +123,12 @@ function CreateItemWrapper(props: {
 
   const slug = useMemo(() => {
     if (duplicateSlug) {
-      return { field: collectionConfig.slugField, slug: duplicateSlug };
+      return { field: sourceConfig.slugField, slug: duplicateSlug };
     }
     if (collectionConfig.template) {
       return { field: collectionConfig.slugField, slug: '' };
     }
-  }, [duplicateSlug, collectionConfig]);
+  }, [duplicateSlug, collectionConfig, sourceConfig]);
 
   const isFromTemplate = !!duplicateSlug || !!collectionConfig.template;
 
@@ -126,27 +137,33 @@ function CreateItemWrapper(props: {
     dirpath:
       collectionConfig.template && !duplicateSlug
         ? collectionConfig.template
-        : getCollectionItemPath(
-            props.config,
-            props.collection,
-            duplicateSlug ?? ''
-          ),
-    schema: collectionConfig.schema,
-    format,
+        : getCollectionItemPath(props.config, source, duplicateSlug ?? ''),
+    schema: sourceConfig.schema,
+    format: sourceFormat,
     slug,
   });
 
-  const duplicateInitalState =
+  const loadedState =
     isFromTemplate &&
     itemData.kind === 'loaded' &&
     itemData.data !== 'not-found'
       ? itemData.data.initialState
       : undefined;
+  // A translation keeps the slug: the same slug is the same page.
+  const duplicateInitalState = useMemo(
+    () =>
+      loadedState && source !== props.collection
+        ? translatedState(loadedState, collectionConfig.schema)
+        : loadedState,
+    [loadedState, source, props.collection, collectionConfig]
+  );
 
-  const duplicateInitalStateWithUpdatedSlug = useDuplicateSlug(
-    duplicateInitalState,
+  const withCopySlug = useDuplicateSlug(
+    source === props.collection ? duplicateInitalState : undefined,
     collectionConfig
   );
+  const duplicateInitalStateWithUpdatedSlug =
+    source === props.collection ? withCopySlug : duplicateInitalState;
 
   const currentBranch = useCurrentBranch();
   const yjsInfo = useYjsIfAvailable();
@@ -281,6 +298,7 @@ function CreateItemLocal(props: {
   const formatInfo = getCollectionFormat(props.config, props.collection);
 
   const basePath = getCollectionItemPath(props.config, props.collection, slug);
+  const extras = useCommitExtras();
   const [createResult, _createItem, resetCreateItemState] = useUpsertItem({
     state,
     basePath,
@@ -290,6 +308,7 @@ function CreateItemLocal(props: {
     format: formatInfo,
     currentLocalTreeKey: undefined,
     slug: { field: collectionConfig.slugField, value: slug },
+    extras,
   });
   const createItem = useEventCallback(_createItem);
 
@@ -341,19 +360,26 @@ function CreateItemLocal(props: {
     hasCreated,
   ]);
   return (
-    <CreateItemInner
-      basePath={props.basePath}
+    <PageFormProvider
       collection={props.collection}
-      createResult={createResult}
-      createItem={createItem}
-      resetCreateItemState={resetCreateItemState}
+      slug={undefined}
       state={state}
-      slug={slug}
-      previewProps={previewProps}
-      onReset={() => {
-        setState(initialState);
-      }}
-    />
+      extras={extras}
+    >
+      <CreateItemInner
+        basePath={props.basePath}
+        collection={props.collection}
+        createResult={createResult}
+        createItem={createItem}
+        resetCreateItemState={resetCreateItemState}
+        state={state}
+        slug={slug}
+        previewProps={previewProps}
+        onReset={() => {
+          setState(initialState);
+        }}
+      />
+    </PageFormProvider>
   );
 }
 
@@ -504,13 +530,14 @@ function CreateItemInner(props: {
     [collectionConfig.label, stringFormatter, collectionPath]
   );
 
+  const klayCrumbs = useCreateBreadcrumbs(props.collection, props.basePath);
   const isBelowDesktop = useMediaQuery(breakpointQueries.below.desktop);
 
   return (
     <>
       <PageRoot containerWidth={containerWidthForEntryLayout(collectionConfig)}>
         <PageHeader>
-          <HeaderBreadcrumbs items={breadcrumbItems} />
+          <HeaderBreadcrumbs items={klayCrumbs ?? breadcrumbItems} />
           <PresenceAvatars />
           {isLoading && (
             <ProgressCircle

@@ -7,15 +7,17 @@ import { useRouter } from '../router';
 import { useAppState } from '../shell/context';
 import { useChanged } from '../shell/data';
 import { useDraftsContext } from './draft-data';
+import { useMenuSections } from './menu-sections-data';
 import { useLanguages } from './pages-data';
 
-// Writers see pages, not collections: one list for every language.
+// Writers see pages and menu sections, not collections and singletons.
 export function DraftNav() {
   const { basePath } = useAppState();
   const router = useRouter();
   const drafts = useDraftsContext();
   const changed = useChanged();
   const languages = useLanguages();
+  const menu = useMenuSections();
   const slugs = new Set<string>();
   if (drafts && !drafts.onLive) {
     for (const l of languages) {
@@ -29,6 +31,10 @@ export function DraftNav() {
   const onPages =
     path.startsWith(`${basePath}/pages`) ||
     path.startsWith(`${basePath}/collection/`);
+  const onSections =
+    path.startsWith(`${basePath}/menu-sections`) ||
+    (!!menu.setup &&
+      path.startsWith(`${basePath}/singleton/${menu.setup.singleton}`));
   return (
     <ScrollView flex paddingY="large" paddingEnd="medium">
       <NavList>
@@ -49,6 +55,19 @@ export function DraftNav() {
             </Badge>
           )}
         </NavItem>
+        {menu.setup && (
+          <NavItem
+            href={`${basePath}/menu-sections`}
+            aria-current={onSections ? 'page' : undefined}
+          >
+            <Text>Menu sections</Text>
+            {drafts && !drafts.onLive && menu.changed && (
+              <Badge tone="accent" marginStart="auto">
+                Changed
+              </Badge>
+            )}
+          </NavItem>
+        )}
       </NavList>
     </ScrollView>
   );
