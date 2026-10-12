@@ -56,7 +56,10 @@ export type Library =
       usersOf: (path: string) => PageUse[] | undefined;
       // "On 2 pages"; empty while the pages are being read
       usageOf: (path: string) => string;
-      alts: Record<string, string>;
+      // undefined until the alt text file is read
+      alts: Record<string, string> | undefined;
+      // The alt text file as it is now, to merge a save into.
+      readAltFile: () => Promise<string | undefined>;
     };
 
 const decoder = new TextDecoder();
@@ -70,6 +73,7 @@ export function useLibrary(): Library {
   const languages = useLanguages();
   const dir = useImageDirectory();
   const [texts, setTexts] = useState(new Map<string, string>());
+  const [altText, setAltText] = useState<{ sha: string; text: string }>();
   const onLive = useDraftsContext()?.onLive ?? true;
 
   const plan = useMemo(() => {
@@ -86,13 +90,14 @@ export function useLibrary(): Library {
         .flatMap(p => (p.path ? [{ ...p, path: p.path }] : []))
     );
     const altPath = `${dir}/${ALT_FILE}`;
-    const reads = [
-      ...pages.map(p => p.path),
-      ...(current.entries.has(altPath) ? [altPath] : []),
-    ].map(path => ({ path, sha: current.entries.get(path)!.sha }));
+    const reads = pages.map(p => ({
+      path: p.path,
+      sha: current.entries.get(p.path)!.sha,
+    }));
     return {
       dir,
       altPath,
+      altSha: current.entries.get(altPath)?.sha,
       pages,
       reads,
       current,
@@ -115,6 +120,19 @@ export function useLibrary(): Library {
       })
     ).then(
       entries => !cancelled && setTexts(new Map(entries)),
+      () => {}
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [plan, config, head, repoInfo]);
+
+  useEffect(() => {
+    const sha = plan?.altSha;
+    if (!plan || !sha) return;
+    let cancelled = false;
+    Promise.resolve(fetchBlob(config, sha, plan.altPath, head, repoInfo)).then(
+      bytes => !cancelled && setAltText({ sha, text: decoder.decode(bytes) }),
       () => {}
     );
     return () => {
@@ -158,9 +176,19 @@ export function useLibrary(): Library {
       onLive,
       usersOf: path => (usage ? usage.get(path) ?? [] : undefined),
       usageOf: path => (usage ? usageLabel(usage.get(path)?.length ?? 0) : ''),
-      alts: parseAltTexts(read(plan.altPath)),
+      alts: !plan.altSha
+        ? {}
+        : altText?.sha === plan.altSha
+        ? parseAltTexts(altText.text)
+        : undefined,
+      readAltFile: async () =>
+        plan.altSha
+          ? decoder.decode(
+              await fetchBlob(config, plan.altSha, plan.altPath, head, repoInfo)
+            )
+          : undefined,
     };
-  }, [plan, texts, onLive]);
+  }, [plan, texts, onLive, altText, config, head, repoInfo]);
 }
 
 // Removed pictures are read from the live site.

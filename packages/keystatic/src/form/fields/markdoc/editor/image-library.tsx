@@ -101,6 +101,22 @@ export async function newImageAttrs(
   };
 }
 
+// Without a library a new file goes to the page's folder, so a library
+// reference becomes a page picture; otherwise only the bytes change.
+export function chosenFileAttrs(
+  config: EditorConfig,
+  attrs: { fromLibrary?: boolean },
+  file: { name: string; bytes: Uint8Array }
+) {
+  return attrs.fromLibrary
+    ? {
+        src: file.bytes,
+        filename: config.image!.transformFilename(file.name),
+        fromLibrary: false,
+      }
+    : { src: file.bytes };
+}
+
 export function libraryImageAttrs(config: EditorConfig, image: PickedImage) {
   return {
     src: image.bytes,

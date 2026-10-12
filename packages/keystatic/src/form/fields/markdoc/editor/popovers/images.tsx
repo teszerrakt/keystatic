@@ -23,6 +23,7 @@ import { getUploadedFileObject } from '../../../image/ui';
 import { EditorState, NodeSelection } from 'prosemirror-state';
 import { useEditorDispatchCommand, useEditorSchema } from '../editor-view';
 import {
+  chosenFileAttrs,
   libraryImageAttrs,
   libraryImagePath,
   useImageLibrary,
@@ -66,7 +67,9 @@ export function ImagePopover(props: {
       return;
     }
     const file = await getUploadedFileObject('image/*');
-    if (file) setAttrs({ src: new Uint8Array(await file.arrayBuffer()) });
+    if (!file) return;
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    setAttrs(chosenFileAttrs(schema.config, attrs, { name: file.name, bytes }));
   };
   return (
     <>

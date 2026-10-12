@@ -12,6 +12,7 @@ import {
   serializeAltTexts,
   uploadProblem,
   usageLabel,
+  withAlt,
 } from './images';
 
 const dir = 'src/assets/images/docs';
@@ -132,4 +133,15 @@ test('alt text file round-trips, sorted, without blanks', () => {
   expect(parseAltTexts(text)).toEqual({ 'a.png': 'Ay', 'b.png': 'Bee' });
   expect(parseAltTexts('not json')).toEqual({});
   expect(parseAltTexts(undefined)).toEqual({});
+});
+
+test('an alt text save merges into the file as it is now', () => {
+  const now = serializeAltTexts({ 'shared/a.png': 'A', 'shared/b.png': 'B' });
+  expect(parseAltTexts(withAlt(now, 'shared/b.png', 'Bee'))).toEqual({
+    'shared/a.png': 'A',
+    'shared/b.png': 'Bee',
+  });
+  expect(withAlt(undefined, 'shared/a.png', 'A')).toBe(
+    '{\n  "shared/a.png": "A"\n}\n'
+  );
 });

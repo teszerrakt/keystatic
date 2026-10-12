@@ -188,6 +188,11 @@ export function parseAltTexts(
   }
 }
 
+// Merges one default into the alt text file as it is now.
+export function withAlt(text: string | undefined, key: string, alt: string) {
+  return serializeAltTexts({ ...parseAltTexts(text), [key]: alt });
+}
+
 export function serializeAltTexts(alts: Record<string, string>) {
   const entries = Object.entries(alts)
     .map(([k, v]) => [k, v.trim()] as const)

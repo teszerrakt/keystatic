@@ -6,7 +6,7 @@ import { markdocToProseMirror } from '../markdoc/parse';
 import { proseMirrorToMarkdoc } from '../markdoc/serialize';
 import { createEditorSchema } from '../schema';
 import { editorOptionsToConfig } from '../../config';
-import { libraryImageAttrs } from '../image-library';
+import { chosenFileAttrs, libraryImageAttrs } from '../image-library';
 
 const dir = 'src/assets/images/docs';
 const schema = createEditorSchema(
@@ -97,4 +97,37 @@ test('an inserted library picture stores a path, never the bytes', () => {
   expect(text.trim()).toBe(
     '![October promo](../../../assets/images/docs/shared/promo.jpg)'
   );
+});
+
+test('without a library, a new file turns a reference into a page picture', () => {
+  const bytes = new Uint8Array([7]);
+  expect(
+    chosenFileAttrs(
+      schema.config,
+      { fromLibrary: true },
+      { name: 'new.png', bytes }
+    )
+  ).toEqual({ src: bytes, filename: 'new.png', fromLibrary: false });
+  expect(
+    chosenFileAttrs(
+      schema.config,
+      { fromLibrary: false },
+      {
+        name: 'new.png',
+        bytes,
+      }
+    )
+  ).toEqual({ src: bytes });
+  const node = schema.schema.nodes.image.create({
+    src: bytes,
+    filename: 'new.png',
+    fromLibrary: false,
+  });
+  const doc = schema.nodes.doc.create(
+    {},
+    schema.nodes.paragraph.create({}, node)
+  );
+  const { text, files } = save(doc, 'page');
+  expect([...files.keys()]).toEqual(['new.png']);
+  expect(text).toContain('../../../assets/images/docs/page/new.png');
 });

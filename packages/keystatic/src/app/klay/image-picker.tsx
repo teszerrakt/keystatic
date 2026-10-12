@@ -253,7 +253,7 @@ function ImagePicker(
       setAlt(props.current.alt);
       setCaption(props.current.title);
     } else {
-      setAlt(loaded?.alts[altKey(props.directory, path)] ?? '');
+      setAlt(loaded?.alts?.[altKey(props.directory, path)] ?? '');
       setCaption('');
     }
   };

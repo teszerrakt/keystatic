@@ -52,7 +52,7 @@ import {
   freePath,
   LibraryImage,
   planUploads,
-  serializeAltTexts,
+  withAlt,
   stem,
   uploadProblem,
 } from './images';
@@ -175,7 +175,8 @@ function RemoveImageDialog(props: {
 function ImageDetails(props: {
   image: LibraryImage;
   pages: PageUse[] | undefined;
-  alt: string;
+  // undefined until the alt text file is read
+  alt: string | undefined;
   base: string;
   busy: boolean;
   onClose: () => void;
@@ -191,7 +192,7 @@ function ImageDetails(props: {
   const [alt, setAlt] = useState<string | null>(null);
   const [savingAlt, setSavingAlt] = useState(false);
   const removed = image.draft === 'removed';
-  const altValue = alt ?? props.alt;
+  const altValue = alt ?? props.alt ?? '';
   return (
     <Flex
       elementType="aside"
@@ -279,12 +280,13 @@ function ImageDetails(props: {
             description="Filled in when you add this image to a page. Each page can change it."
             value={altValue}
             onChange={setAlt}
+            isDisabled={props.alt === undefined}
           />
           {alt !== null && alt !== props.alt && (
             <Flex gap="regular">
               <Button
                 prominence="high"
-                isDisabled={savingAlt || props.busy}
+                isDisabled={savingAlt || props.busy || props.alt === undefined}
                 onPress={async () => {
                   setSavingAlt(true);
                   try {
@@ -525,10 +527,11 @@ export function ImagesPage() {
         {
           path: `${loaded.dir}/${ALT_FILE}`,
           contents: new TextEncoder().encode(
-            serializeAltTexts({
-              ...loaded.alts,
-              [altKey(loaded.dir, image.path)]: alt,
-            })
+            withAlt(
+              await loaded.readAltFile(),
+              altKey(loaded.dir, image.path),
+              alt
+            )
           ),
         },
       ],
@@ -673,7 +676,7 @@ export function ImagesPage() {
             key={selectedImage.path}
             image={selectedImage}
             pages={loaded.usersOf(selectedImage.path)}
-            alt={loaded.alts[altKey(loaded.dir, selectedImage.path)] ?? ''}
+            alt={loaded.alts?.[altKey(loaded.dir, selectedImage.path)]}
             base={base}
             busy={busy}
             onClose={() => setSelected(null)}
