@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { expect, test } from 'vitest';
 import { Node } from 'prosemirror-model';
+import { EditorView } from 'prosemirror-view';
 import { format, parse } from '#markdoc';
 import { markdocToProseMirror } from '../markdoc/parse';
 import { proseMirrorToMarkdoc } from '../markdoc/serialize';
@@ -130,4 +131,38 @@ test('without a library, a new file turns a reference into a page picture', () =
   const { text, files } = save(doc, 'page');
   expect([...files.keys()]).toEqual(['new.png']);
   expect(text).toContain('../../../assets/images/docs/page/new.png');
+});
+
+test('a missing file in the page’s own folder stays as text', () => {
+  const doc = load(
+    '![Gone](../../../assets/images/docs/page/gone.png)',
+    'page'
+  );
+  expect(images(doc)).toEqual([]);
+  expect(doc.textContent).toBe(
+    '![Gone](../../../assets/images/docs/page/gone.png)'
+  );
+});
+
+test('without a library, a reference shows its path instead of a blank image', () => {
+  const doc = load(
+    '![Hero](../../../assets/images/docs/shared/hero.png)',
+    'page'
+  );
+  let image: Node | undefined;
+  doc.descendants(n => {
+    if (n.type.name === 'image') image = n;
+  });
+  const view = { props: {} } as unknown as EditorView;
+  const { dom } = schema.schema.nodes.image.spec.nodeView!(
+    image!,
+    view,
+    () => 0,
+    [],
+    {} as any
+  ) as { dom: HTMLElement };
+  expect(dom.tagName).toBe('SPAN');
+  expect(dom.textContent).toBe(
+    `Image from ${dir}/shared/hero.png (not editable here)`
+  );
 });

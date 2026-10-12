@@ -407,6 +407,7 @@ function markdocNodeToProseMirrorNode(
     const library = libraryImageNode(
       schema,
       fullFilename,
+      prefix,
       node.attributes.alt,
       node.attributes.title
     );

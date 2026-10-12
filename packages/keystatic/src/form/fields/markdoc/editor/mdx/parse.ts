@@ -443,6 +443,7 @@ function markdocNodeToProseMirrorNode(
     const library = libraryImageNode(
       schema,
       fullFilename,
+      prefix,
       node.alt ?? undefined,
       data.title
     );

@@ -38,14 +38,17 @@ export function useImageLibrary(config: EditorConfig) {
 const srcBase = (config: EditorConfig) =>
   getSrcPrefix(libraryConfig(config)?.publicPath, undefined);
 
-// A src under the image directory but outside the page's folder.
+// A src under the image directory but outside the page's folder
+// (`pagePrefix`); a missing file in that folder stays as text.
 export function libraryImageNode(
   schema: EditorSchema,
   src: string,
+  pagePrefix: string,
   alt: string | undefined,
   title: string | null | undefined
 ) {
   const base = libraryConfig(schema.config) && srcBase(schema.config);
+  if (base && pagePrefix !== base && src.startsWith(pagePrefix)) return;
   const filename = base && src.startsWith(base) && src.slice(base.length);
   if (!filename || !schema.nodes.image) return;
   return schema.nodes.image.createChecked({
