@@ -158,6 +158,16 @@ const MergePullRequest = gql`
   }
 ` as import('../../../__generated__/ts-gql/KlayMergePullRequest').type;
 
+const UpdatePullRequestBody = gql`
+  mutation KlayUpdatePullRequestBody($id: ID!, $body: String!) {
+    updatePullRequest(input: { pullRequestId: $id, body: $body }) {
+      pullRequest {
+        id
+      }
+    }
+  }
+` as import('../../../__generated__/ts-gql/KlayUpdatePullRequestBody').type;
+
 const DeleteDraft = gql`
   mutation KlayDeleteDraft($id: ID!) {
     deleteRef(input: { refId: $id }) {
@@ -342,7 +352,7 @@ function usePublish(onDone: () => Promise<unknown>) {
     };
   }
 
-  async function canMergeNow(id: string, now: boolean) {
+  async function canMergeNow(id: string) {
     // GitHub reports UNKNOWN while it works out a fresh pull request.
     for (let attempt = 0; attempt < 5; attempt++) {
       const res = await client
@@ -352,10 +362,7 @@ function usePublish(onDone: () => Promise<unknown>) {
       const status =
         node?.__typename === 'PullRequest' ? node.mergeStateStatus : 'UNKNOWN';
       if (status !== 'UNKNOWN') {
-        // Publish now never merges past a check that has not passed (D1).
-        return ['CLEAN', 'HAS_HOOKS', ...(now ? [] : ['UNSTABLE'])].includes(
-          status
-        );
+        return ['CLEAN', 'HAS_HOOKS', 'UNSTABLE'].includes(status);
       }
       await new Promise(r => setTimeout(r, 1500));
     }
@@ -366,7 +373,15 @@ function usePublish(onDone: () => Promise<unknown>) {
     if (!draft || !repoInfo) return;
     setState({ kind: 'working', now });
     try {
+      const body = now ? publishNowNote : 'Published from the docs editor.';
       let id = draft.pr?.id;
+      if (id && !!draft.pr?.now !== now) {
+        // A pull request left open by the other kind of publish.
+        const updated = await client
+          .mutation(UpdatePullRequestBody, { id, body })
+          .toPromise();
+        if (updated.error) throw updated.error;
+      }
       if (!id) {
         const created = await client
           .mutation(CreatePullRequest, {
@@ -375,7 +390,7 @@ function usePublish(onDone: () => Promise<unknown>) {
               baseRefName: repoInfo.defaultBranch,
               headRefName: draft.name,
               title: draftTitle(draft.name, draftPrefix(config)),
-              body: now ? publishNowNote : 'Published from the docs editor.',
+              body,
             },
           })
           .toPromise();
@@ -389,8 +404,10 @@ function usePublish(onDone: () => Promise<unknown>) {
         .toPromise();
       // Auto-merge refuses a pull request that can merge already, and is
       // off on repos without branch protection: merge now when GitHub allows.
+      // Publish now never does: GitHub reports CLEAN before any check has
+      // started, and only auto-merge waits for one (D1).
       if (queued.error) {
-        if (!(await canMergeNow(id, now))) throw queued.error;
+        if (now || !(await canMergeNow(id))) throw queued.error;
         const merged = await client
           .mutation(MergePullRequest, { id, ...message })
           .toPromise();
@@ -411,6 +428,9 @@ function explain(message: string) {
   const m = message.replace(/^\[GraphQL\] /, '');
   if (/auto-merge is not allowed|not enabled for this repository/i.test(m)) {
     return 'Publishing is switched off for this repository. Ask an admin to allow auto-merge in its GitHub settings.';
+  }
+  if (/is in (clean|unstable) status/i.test(m)) {
+    return 'This site has no check for Publish now to wait for. Use Publish… in the bar above.';
   }
   if (/no commits between/i.test(m)) {
     return 'This draft has no changes yet. Save a page first.';

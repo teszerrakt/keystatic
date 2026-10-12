@@ -27,25 +27,26 @@ export function publishNowPlan(input: {
   // What the open draft already changes against the live site.
   pages: PageChange[];
   files: FileChange[];
-  // Files the save writes besides the page's own file, and the page's text.
-  saving: string[];
+  // What the save itself changes against the live site, besides the page's
+  // own file; then the page's text.
+  saving: FileChange[];
   pageText: string;
-  isLive: (path: string) => boolean;
 }): PublishNowPlan {
   const isPage = (p: PageChange) =>
     p.collection === input.page.collection && p.slug === input.page.slug;
 
   const changed = new Map(input.files.map(f => [f.path, f.kind]));
-  for (const path of input.saving) {
-    const live = input.isLive(path);
-    // A page rewrites every picture it shows; one already live is unchanged.
-    if (changed.has(path) || (live && PICTURE.test(path))) continue;
-    changed.set(path, live ? 'changed' : 'added');
+  for (const f of input.saving) {
+    if (!changed.has(f.path)) changed.set(f.path, f.kind);
   }
+  // The page's own save writes only pictures it shows or drops.
+  const saved = new Set(input.saving.map(f => f.path));
   const allowed =
     input.pages.every(isPage) &&
     [...changed.keys()].every(
-      path => PICTURE.test(path) && input.pageText.includes(fileName(path))
+      path =>
+        PICTURE.test(path) &&
+        (saved.has(path) || input.pageText.includes(fileName(path)))
     );
 
   return {

@@ -3,14 +3,12 @@ import { expect, test } from 'vitest';
 import { isPublishNow, publishNowNote, publishNowPlan } from './publish-now';
 
 const page = { collection: 'docsEn', slug: 'about-us' };
-const live = new Set(['src/assets/images/docs/logo.png', 'src/menu.yaml']);
 const base = {
   page,
   pages: [],
   files: [],
   saving: [],
   pageText: 'We started Klay.',
-  isLive: (path: string) => live.has(path),
 };
 
 test('an edit on the live site publishes just the page', () => {
@@ -24,7 +22,9 @@ test('an edit on the live site publishes just the page', () => {
 test('a new picture saved with the page goes live with it', () => {
   const plan = publishNowPlan({
     ...base,
-    saving: ['src/assets/images/docs/team-2026.png'],
+    saving: [
+      { path: 'src/assets/images/docs/team-2026.png', kind: 'added' as const },
+    ],
     pageText: '![Team](../../assets/images/docs/team-2026.png)',
   });
   expect(plan.allowed).toBe(true);
@@ -37,13 +37,19 @@ test('a new picture saved with the page goes live with it', () => {
   ]);
 });
 
-test('a picture already live is not part of the save', () => {
+test('pictures the save replaces or drops go live with the page', () => {
   const plan = publishNowPlan({
     ...base,
-    saving: ['src/assets/images/docs/logo.png'],
-    pageText: '![Logo](../../assets/images/docs/logo.png)',
+    saving: [
+      { path: 'src/assets/images/docs/cover.png', kind: 'changed' as const },
+      { path: 'src/assets/images/docs/old.png', kind: 'removed' as const },
+    ],
   });
-  expect(plan).toEqual({ allowed: true, page: 'changed', pictures: [] });
+  expect(plan.allowed).toBe(true);
+  expect(plan.pictures.map(p => [p.title, p.kind])).toEqual([
+    ['Cover', 'changed'],
+    ['Old', 'removed'],
+  ]);
 });
 
 test('a draft with only this page, new, and a picture it uses is allowed', () => {
@@ -92,9 +98,12 @@ test('a non-picture file in the draft or the save is blocked', () => {
       files: [{ path: 'astro.config.mjs', kind: 'changed' }],
     }).allowed
   ).toBe(false);
-  expect(publishNowPlan({ ...base, saving: ['src/menu.yaml'] }).allowed).toBe(
-    false
-  );
+  expect(
+    publishNowPlan({
+      ...base,
+      saving: [{ path: 'src/menu.yaml', kind: 'changed' as const }],
+    }).allowed
+  ).toBe(false);
 });
 
 test('the pull request note marks a Publish now', () => {

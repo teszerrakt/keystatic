@@ -294,7 +294,12 @@ function ItemPageInner(
                   isDisabled={isSavingDisabled}
                   onSave={() => save(false)}
                   onPublishNow={onPublishNow}
-                  page={{ collection, slug: itemSlug, state: props.state }}
+                  page={{
+                    collection,
+                    slug: itemSlug,
+                    state: props.state,
+                    initialFiles: props.initialFiles,
+                  }}
                 />
               ) : undefined
             }

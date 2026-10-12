@@ -18,19 +18,22 @@ import {
 } from '../path-utils';
 import { useConfig } from '../shell/context';
 import { useChanged, useTree } from '../shell/data';
+import { blobSha } from '../trees';
 import { entryFiles } from '../updating';
 import { getSlugFromState } from '../utils';
 import { useDraftSaveCopy } from './drafts';
 import { usePageForm } from './page-form';
 import { pageTitleFrom } from './page-title';
 import { publishNowPlan, PublishNowPlan } from './publish-now';
-import { draftChanges } from './review';
+import { draftChanges, FileChange, PICTURE } from './review';
 import { useLanguageOf } from './review-data';
 
 type Page = {
   collection: string;
   slug: string;
   state: Record<string, unknown>;
+  // The entry's files as loaded, under the content root.
+  initialFiles: string[];
 };
 
 // Reads the draft and serializes the page, so it runs when the menu opens.
@@ -39,7 +42,7 @@ function usePlanPublishNow(page: Page) {
   const trees = useTree();
   const changed = useChanged();
   const extras = usePageForm()?.extras;
-  return (): PublishNowPlan => {
+  return async (): Promise<PublishNowPlan> => {
     if (trees.merged.kind !== 'loaded') {
       return { allowed: false, page: 'changed', pictures: [] };
     }
@@ -54,6 +57,21 @@ function usePlanPublishNow(page: Page) {
       slug: { field: collection.slugField, value: slug },
       extras,
     });
+    const saving: FileChange[] = [];
+    for (const f of others) {
+      const liveSha = live.entries.get(f.path)?.sha;
+      const sha = await blobSha(f.contents);
+      if (liveSha !== sha) {
+        saving.push({ path: f.path, kind: liveSha ? 'changed' : 'added' });
+      }
+    }
+    // Other files the save drops are this page's own; only pictures show.
+    const kept = new Set([own, ...others].map(f => f.path));
+    for (const path of page.initialFiles) {
+      if (!kept.has(path) && PICTURE.test(path) && live.entries.has(path)) {
+        saving.push({ path, kind: 'removed' });
+      }
+    }
     return publishNowPlan({
       page,
       ...draftChanges({
@@ -64,9 +82,8 @@ function usePlanPublishNow(page: Page) {
           getCollectionPath(config, c)
         ),
       }),
-      saving: others.map(f => f.path),
+      saving,
       pageText: new TextDecoder().decode(own.contents),
-      isLive: path => live.entries.has(path),
     });
   };
 }
@@ -142,7 +159,9 @@ export function SaveSplitButton(props: {
         isDisabled={props.isDisabled}
         menuLabel="More save options"
         onOpenChange={open => {
-          if (open) setPlan(planNow());
+          if (!open) return;
+          setPlan(null);
+          planNow().then(setPlan);
         }}
         menu={
           <Menu
@@ -163,7 +182,7 @@ export function SaveSplitButton(props: {
               <Icon src={zapIcon} />
               <Text>Publish now</Text>
               <Text slot="description">
-                {plan?.allowed
+                {!plan || plan.allowed
                   ? 'For small fixes. Skips the preview, live in about 2 minutes.'
                   : 'This draft also changes other pages. Publish now is for one page and its pictures. Use Publish… in the bar above.'}
               </Text>
