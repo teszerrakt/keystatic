@@ -153,7 +153,11 @@ export function ImageCard(props: {
           </Text>
         )}
         <Flex alignItems="center" gap="regular" minHeight="element.small">
-          <Text size="small" color="neutralSecondary">
+          <Text
+            size="small"
+            color="neutralSecondary"
+            UNSAFE_style={{ whiteSpace: 'nowrap' }}
+          >
             {props.usage}
           </Text>
           {image.draft && !props.compact && (

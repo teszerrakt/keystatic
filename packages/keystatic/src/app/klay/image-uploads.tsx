@@ -1,5 +1,3 @@
-import { ReactNode } from 'react';
-
 import { Badge } from '@keystar/ui/badge';
 import { ActionButton, Button } from '@keystar/ui/button';
 import { DropZone, FileTrigger } from '@keystar/ui/drag-and-drop';
@@ -32,6 +30,8 @@ export type Upload = {
   path?: string;
   message?: string;
 };
+
+type Tone = 'critical' | 'caution' | 'neutralSecondary';
 
 export type ClashChoice = 'keep' | 'replace' | 'skip';
 
@@ -82,15 +82,17 @@ export function UploadRow(props: {
   onChoose: (choice: ClashChoice) => void;
 }) {
   const { upload } = props;
-  const status: Record<UploadStatus, ReactNode> = {
-    refused: <Text color="critical">{upload.message}</Text>,
-    failed: <Text color="critical">{upload.message}</Text>,
-    clash: <Text color="caution">{props.usedBy}</Text>,
-    ready: <Text color="neutralSecondary">Waiting…</Text>,
-    saving: <Text color="neutralSecondary">Saving to your draft…</Text>,
-    saved: <Text color="neutralSecondary">Saved to your draft</Text>,
-    skipped: <Text color="neutralSecondary">Skipped</Text>,
+  const status: Record<UploadStatus, [string | undefined, Tone]> = {
+    refused: [upload.message, 'critical'],
+    failed: [upload.message, 'critical'],
+    clash: [props.usedBy, 'caution'],
+    ready: ['Waiting…', 'neutralSecondary'],
+    saving: ['Saving to your draft…', 'neutralSecondary'],
+    saved: ['Saved to your draft', 'neutralSecondary'],
+    skipped: ['Skipped', 'neutralSecondary'],
   };
+  const [line, tone] = status[upload.status];
+
   return (
     <Flex
       direction="column"
@@ -103,11 +105,13 @@ export function UploadRow(props: {
     >
       <Flex gap="medium" alignItems="center">
         <UploadThumb upload={upload} />
-        <Flex direction="column" gap="small" flex minWidth={0}>
+        <Flex direction="column" gap="regular" flex minWidth={0}>
           <Text weight="medium" truncate>
             {upload.name}
           </Text>
-          <Text size="small">{status[upload.status]}</Text>
+          <Text size="small" color={tone}>
+            {line}
+          </Text>
         </Flex>
         {upload.status === 'saved' && <Icon src={checkIcon} color="positive" />}
         {upload.status === 'saving' && (

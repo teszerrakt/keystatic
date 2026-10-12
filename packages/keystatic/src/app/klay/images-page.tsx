@@ -271,10 +271,10 @@ function ImageDetails(props: {
         elementType="dl"
         UNSAFE_className={css({
           display: 'grid',
-          gap: tokenSchema.size.space.medium,
+          gap: tokenSchema.size.space.large,
           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
           margin: 0,
-          '& dd': { margin: 0, marginTop: tokenSchema.size.space.small },
+          '& dd': { margin: 0, marginTop: tokenSchema.size.space.regular },
         })}
       >
         {[
