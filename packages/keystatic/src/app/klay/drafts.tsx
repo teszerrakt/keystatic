@@ -1,4 +1,4 @@
-import { ComponentProps, useEffect, useRef } from 'react';
+import { ComponentProps, useEffect, useRef, useState } from 'react';
 
 import { Button, ButtonGroup } from '@keystar/ui/button';
 import { Dialog, DialogContainer } from '@keystar/ui/dialog';
@@ -7,15 +7,11 @@ import { Content } from '@keystar/ui/slots';
 import { Heading } from '@keystar/ui/typography';
 
 import { Config } from '../../config';
-import {
-  prettyErrorForCreateBranchMutation,
-  useCreateBranchMutation,
-} from '../branch-selection';
 import { useConfig } from '../shell/context';
 import { useBranches, useCurrentBranch, useRepoInfo } from '../shell/data';
 import { getBranchPrefix } from '../utils';
+import { useCreateDraft } from './draft-commit';
 import { useDraftsContext } from './draft-data';
-import { draftTitle } from './draft-status';
 
 export function isDraftsOnly(config: Config) {
   return config.storage.kind !== 'local' && !!config.storage.draftsOnly;
@@ -41,6 +37,13 @@ export function uniqueDraftName(
   return name;
 }
 
+export function useNewDraftName() {
+  const config = useConfig();
+  const branches = useBranches();
+  return (page: string | undefined) =>
+    uniqueDraftName(draftPrefix(config), page, branches);
+}
+
 // Writers never name branches: the draft bar shows the save, and a dialog
 // opens only if GitHub refuses the new branch.
 export function BranchDialogContainer(
@@ -63,33 +66,27 @@ export function AutoDraftBranchDialog(props: {
   const repoInfo = useRepoInfo();
   const branches = useBranches();
   const drafts = useDraftsContext();
-  const [{ error }, createBranch] = useCreateBranchMutation();
+  const createDraft = useCreateDraft();
+  const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
 
   useEffect(() => {
-    if (started.current || !repoInfo) return;
+    if (started.current || !repoInfo || !drafts) return;
     started.current = true;
-    const prefix = draftPrefix(config);
-    const name = uniqueDraftName(prefix, props.suggestedName, branches);
-    const saving = {
-      title: draftTitle(name, prefix),
-      baseOid: props.branchOid,
-    };
-    drafts?.setSaving({ ...saving, branch: null });
-    createBranch({
-      input: {
-        name: `refs/heads/${name}`,
-        oid: props.branchOid,
-        repositoryId: repoInfo.id,
-      },
-    }).then(result => {
-      if (result.data?.createRef?.__typename) {
-        drafts?.setSaving({ ...saving, branch: name });
+    const name = uniqueDraftName(
+      draftPrefix(config),
+      props.suggestedName,
+      branches
+    );
+    // Without handed-off changes the editor commits once the branch exists.
+    const changes = drafts.handoff.changesOn(props.branchOid);
+    createDraft(name, props.branchOid, changes).then(
+      () => {
+        if (changes) drafts.handoff.committed(name);
         props.onCreate(name);
-      } else {
-        drafts?.setSaving(null);
-      }
-    });
+      },
+      (e: Error) => setError(e.message)
+    );
   });
 
   return (
@@ -98,9 +95,7 @@ export function AutoDraftBranchDialog(props: {
         <Dialog size="small">
           <Heading>Your draft was not saved</Heading>
           <Content>
-            <Notice tone="critical">
-              {prettyErrorForCreateBranchMutation(error)}
-            </Notice>
+            <Notice tone="critical">{error}</Notice>
           </Content>
           <ButtonGroup>
             <Button onPress={props.onDismiss}>Close</Button>

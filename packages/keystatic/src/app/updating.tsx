@@ -29,6 +29,7 @@ import { createUrqlClient } from './provider';
 import { serializeProps } from '../form/serialize-props';
 import { scopeEntriesWithPathPrefix } from './shell/path-prefix';
 import { base64Encode } from '#base64';
+import { useDraftsContext } from './klay/draft-data';
 
 const textEncoder = new TextEncoder();
 
@@ -138,6 +139,7 @@ export function useUpsertItem(args: {
   const repoInfo = useRepoInfo();
   const appSlug = useContext(AppSlugContext);
   const unscopedTreeData = useCurrentUnscopedTree();
+  const handoff = useDraftsContext()?.handoff;
 
   return [
     state,
@@ -213,13 +215,27 @@ export function useUpsertItem(args: {
           if (!repoInfo) {
             throw new Error('Repo info not loaded');
           }
+          const headline = `Update ${args.basePath}`;
+          const encoded = additions.map(addition => ({
+            ...addition,
+            contents: base64Encode(addition.contents),
+          }));
           if (
             !override &&
             args.config.storage.draftsOnly &&
             currentBranch === repoInfo.defaultBranch
           ) {
+            handoff?.stage(baseCommit, {
+              message: { headline },
+              additions: encoded,
+              deletions,
+            });
             setState({ kind: 'needs-new-branch', reason: draftsOnlyReason });
             return false;
+          }
+          if (override && handoff?.take(override.branch)) {
+            setState({ kind: 'updated' });
+            return true;
           }
           const branch = {
             branchName: override?.branch ?? currentBranch,
@@ -230,14 +246,8 @@ export function useUpsertItem(args: {
               input: {
                 branch,
                 expectedHeadOid,
-                message: { headline: `Update ${args.basePath}` },
-                fileChanges: {
-                  additions: additions.map(addition => ({
-                    ...addition,
-                    contents: base64Encode(addition.contents),
-                  })),
-                  deletions,
-                },
+                message: { headline },
+                fileChanges: { additions: encoded, deletions },
               },
             });
           let result = await runMutation(override?.sha ?? baseCommit);

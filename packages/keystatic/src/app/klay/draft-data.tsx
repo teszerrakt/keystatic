@@ -30,6 +30,7 @@ import {
   draftStatus,
   draftTitle,
 } from './draft-status';
+import { saveHandoff } from './new-draft';
 
 // Cloudflare names a branch preview after the branch: lowercase, anything
 // else becomes a dash. Used until the build's own check run names it.
@@ -456,6 +457,7 @@ type DraftsValue = {
   reviewHref: string;
   // Reloads the branch heads, then navigates: needed after a commit made here.
   leaveTo: (href: string) => Promise<void>;
+  handoff: ReturnType<typeof saveHandoff>;
 };
 
 const DraftsContext = createContext<DraftsValue | null>(null);
@@ -491,6 +493,7 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     list.refresh
   );
   const [saving, setSaving] = useState<Saving | null>(null);
+  const [handoff] = useState(saveHandoff);
   const [published, setPublished] = useState<Published | null>(null);
   const onLive = !repoInfo || branch === repoInfo.defaultBranch;
   const title = useCallback((b: string) => draftTitle(b, prefix), [prefix]);
@@ -565,12 +568,29 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     resetPublish,
   ]);
 
+  // A discarded draft leaves the list at once, and comes back if GitHub
+  // refuses. The name is forgotten once the list stops showing it.
+  const [discarded, setDiscarded] = useState<string[]>([]);
+  const listed = list.drafts.map(d => d.name).join('\n');
+  useEffect(() => {
+    const names = listed.split('\n');
+    setDiscarded(prev =>
+      prev.every(n => names.includes(n))
+        ? prev
+        : prev.filter(n => names.includes(n))
+    );
+  }, [listed]);
+
   const discard = async (draft: Draft) => {
     if (!repoInfo) return;
+    setDiscarded(prev => [...prev, draft.name]);
     const res = await client
       .mutation(DeleteDraft, { id: draft.refId })
       .toPromise();
-    if (res.error) throw new Error(explain(res.error.message));
+    if (res.error) {
+      setDiscarded(prev => prev.filter(n => n !== draft.name));
+      throw new Error(explain(res.error.message));
+    }
     leaving.current = draft.name;
     if (draft.name === branch) {
       await leaveTo(branchHref(repoInfo.defaultBranch));
@@ -580,7 +600,7 @@ function DraftsProviderInner(props: { children: ReactNode }) {
   };
 
   const value: DraftsValue = {
-    drafts: list.drafts,
+    drafts: list.drafts.filter(d => !discarded.includes(d.name)),
     current,
     status: draftStatus(current),
     onLive,
@@ -598,6 +618,7 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     editHref,
     reviewHref,
     leaveTo,
+    handoff,
   };
   return (
     <DraftsContext.Provider value={value}>

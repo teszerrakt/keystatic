@@ -1,6 +1,4 @@
-import { gql } from '@ts-gql/tag/no-transform';
 import { useEffect, useMemo, useState } from 'react';
-import { useClient } from 'urql';
 
 import { Button, ButtonGroup } from '@keystar/ui/button';
 import { Dialog, useDialogContainer } from '@keystar/ui/dialog';
@@ -12,10 +10,6 @@ import { css, tokenSchema } from '@keystar/ui/style';
 import { TextField } from '@keystar/ui/text-field';
 import { Heading, Text } from '@keystar/ui/typography';
 
-import {
-  prettyErrorForCreateBranchMutation,
-  useCreateBranchMutation,
-} from '../branch-selection';
 import { getPathPrefix } from '../path-utils';
 import { useConfig } from '../shell/context';
 import {
@@ -26,9 +20,9 @@ import {
 } from '../shell/data';
 import { fetchBlob } from '../useItemData';
 import { getEntriesInCollectionWithTreeKey } from '../utils';
+import { useCommitToDraft } from './draft-commit';
 import { liveHrefFor, useDraftsContext } from './draft-data';
-import { draftTitle } from './draft-status';
-import { draftPrefix, uniqueDraftName } from './drafts';
+import { useNewDraftName } from './drafts';
 import {
   collectionsToDelete,
   deleteMessage,
@@ -40,26 +34,6 @@ import { useLanguages } from './pages-data';
 import { findProblems, PageText } from './review';
 import { pageFile, pathTemplate } from './review-data';
 
-const DeletePage = gql`
-  mutation KlayDeletePage($input: CreateCommitOnBranchInput!) {
-    createCommitOnBranch(input: $input) {
-      ref {
-        id
-        target {
-          id
-          oid
-          ... on Commit {
-            tree {
-              id
-              oid
-            }
-          }
-        }
-      }
-    }
-  }
-` as import('../../../__generated__/ts-gql/KlayDeletePage').type;
-
 const code = css({
   background: tokenSchema.color.background.surfaceTertiary,
   borderRadius: tokenSchema.size.radius.small,
@@ -68,74 +42,29 @@ const code = css({
   paddingInline: tokenSchema.size.space.small,
 });
 
-// Commits to the open draft, or on the live site to a new draft from its head.
+// Commits to the open draft, or on the live site starts the draft `newDraft`.
 function useDeletePage() {
   const config = useConfig();
-  const client = useClient();
   const trees = useTree();
-  const repoInfo = useRepoInfo();
-  const branches = useBranches();
-  const branch = useCurrentBranch();
   const languages = useLanguages();
-  const drafts = useDraftsContext();
-  const [, createBranch] = useCreateBranchMutation();
+  const commit = useCommitToDraft();
   // Read during render: the compiler hoists property reads out of closures.
   const current =
     trees.merged.kind === 'loaded' ? trees.merged.data.current : null;
-  return async (slug: string, collections: string[]) => {
-    if (!current || !repoInfo || !drafts) return;
+  return async (slug: string, collections: string[], newDraft: string) => {
+    if (!current) return;
     const dirs = languages
       .filter(l => collections.includes(l.collection))
       .map(l => l.dir);
     const prefix = getPathPrefix(config.storage) ?? '';
     const paths = filesToDelete({ paths: current.entries.keys(), dirs, slug });
     if (!paths.length) throw new Error('This page has no files to delete.');
-    const onLive = branch === repoInfo.defaultBranch;
-    const head = branches.get(branch)?.commitSha ?? '';
-    let target = branch;
-    if (onLive) {
-      target = uniqueDraftName(draftPrefix(config), `remove-${slug}`, branches);
-      const saving = {
-        title: draftTitle(target, draftPrefix(config)),
-        baseOid: head,
-      };
-      drafts.setSaving({ ...saving, branch: null });
-      const created = await createBranch({
-        input: {
-          name: `refs/heads/${target}`,
-          oid: head,
-          repositoryId: repoInfo.id,
-        },
-      });
-      if (!created.data?.createRef?.__typename) {
-        drafts.setSaving(null);
-        throw new Error(
-          prettyErrorForCreateBranchMutation(created.error) ??
-            'GitHub did not start the draft.'
-        );
-      }
-      drafts.setSaving({ ...saving, branch: target });
-    }
-    const res = await client
-      .mutation(DeletePage, {
-        input: {
-          branch: {
-            repositoryNameWithOwner: `${repoInfo.owner}/${repoInfo.name}`,
-            branchName: target,
-          },
-          expectedHeadOid: head,
-          message: deleteMessage(paths.map(p => prefix + p)),
-          fileChanges: { deletions: paths.map(p => ({ path: prefix + p })) },
-        },
-      })
-      .toPromise();
-    if (res.error) {
-      if (onLive) drafts.setSaving(null);
-      throw new Error(res.error.message.replace(/^\[GraphQL\] /, ''));
-    }
-    await drafts.leaveTo(
-      `/keystatic/branch/${encodeURIComponent(target)}/pages`
-    );
+    await commit({
+      newDraft,
+      message: deleteMessage(paths.map(p => prefix + p)),
+      deletions: paths,
+      href: b => `/keystatic/branch/${encodeURIComponent(b)}/pages`,
+    });
   };
 }
 
@@ -238,11 +167,11 @@ export function DeletePageDialog(props: {
   const config = useConfig();
   const trees = useTree();
   const branch = useCurrentBranch();
-  const branches = useBranches();
   const languages = useLanguages();
   const drafts = useDraftsContext();
   const dialog = useDialogContainer();
   const deletePage = useDeletePage();
+  const newDraftName = useNewDraftName();
   const [scope, setScope] = useState<DeleteScope>('all');
   const [typed, setTyped] = useState('');
   const [working, setWorking] = useState(false);
@@ -273,22 +202,23 @@ export function DeletePageDialog(props: {
   ])
     ?.replace(/^https?:\/\//, '')
     .replace(/\/$/, '');
-  const draftName = drafts?.onLive
-    ? drafts.title(
-        uniqueDraftName(draftPrefix(config), `remove-${props.slug}`, branches)
-      )
-    : drafts?.title(branch);
+  // Fixed once the delete starts: the new branch would make the next name unique.
+  const [newDraft, setNewDraft] = useState<string | null>(null);
+  const proposed = newDraft ?? newDraftName(`remove-${props.slug}`);
+  const draftName = drafts?.title(drafts.onLive ? proposed : branch);
   const ready = slugConfirmed(typed, props.slug) && targets.length > 0;
 
   const run = async () => {
     setWorking(true);
     setError(null);
+    setNewDraft(proposed);
     try {
-      await deletePage(props.slug, targets);
+      await deletePage(props.slug, targets, proposed);
       dialog.dismiss();
     } catch (e) {
       setError((e as Error).message);
       setWorking(false);
+      setNewDraft(null);
     }
   };
 

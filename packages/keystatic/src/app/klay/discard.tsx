@@ -21,6 +21,10 @@ export function DiscardDialog(props: { draft: Draft }) {
   const review = useDraftReview();
   const isOpen = useCurrentBranch() === props.draft.name;
   const title = drafts.title(props.draft.name);
+  const summary =
+    isOpen && review.kind === 'loaded'
+      ? changeSummary(review.groups)
+      : 'this draft';
   return (
     <AlertDialog
       UNSAFE_className={bigButtons}
@@ -36,22 +40,20 @@ export function DiscardDialog(props: { draft: Draft }) {
       }}
     >
       <Flex direction="column" gap="large">
-        <Text>
-          Your changes to{' '}
-          <strong>
-            {isOpen && review.kind === 'loaded'
-              ? changeSummary(review.groups)
-              : 'this draft'}
-          </strong>{' '}
-          are thrown away.{' '}
-          <TextLink
-            href={`/keystatic/branch/${encodeURIComponent(
-              props.draft.name
-            )}/publish`}
-          >
-            See the changes
-          </TextLink>
-        </Text>
+        {summary === null ? (
+          <Text>This draft has no changes left.</Text>
+        ) : (
+          <Text>
+            Your changes to <strong>{summary}</strong> are thrown away.{' '}
+            <TextLink
+              href={`/keystatic/branch/${encodeURIComponent(
+                props.draft.name
+              )}/publish`}
+            >
+              See the changes
+            </TextLink>
+          </Text>
+        )}
         <Text>The live site doesn't change. You can't undo this.</Text>
       </Flex>
     </AlertDialog>
