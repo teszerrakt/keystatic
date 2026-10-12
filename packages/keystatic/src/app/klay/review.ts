@@ -17,7 +17,7 @@ export type Group = {
   rows: Row[];
 };
 
-const PICTURE = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
+export const PICTURE = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 
 export function humanize(name: string) {
   const words = name

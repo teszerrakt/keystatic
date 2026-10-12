@@ -31,6 +31,7 @@ import {
   draftTitle,
 } from './draft-status';
 import { saveHandoff } from './new-draft';
+import { isPublishNow, publishNowNote } from './publish-now';
 
 // Cloudflare names a branch preview after the branch: lowercase, anything
 // else becomes a dash. Used until the build's own check run names it.
@@ -89,6 +90,7 @@ const DraftsQuery = gql`
             nodes {
               id
               number
+              body
               autoMergeRequest {
                 enabledAt
               }
@@ -255,7 +257,12 @@ function useDraftList(head: string | undefined, branch: string) {
         alias: fromCheck ?? previewAlias(ref.name),
         failureUrl: runs.find(failed)?.detailsUrl ?? undefined,
         pr: pr
-          ? { id: pr.id, number: pr.number, queued: !!pr.autoMergeRequest }
+          ? {
+              id: pr.id,
+              number: pr.number,
+              queued: !!pr.autoMergeRequest,
+              now: isPublishNow(pr.body),
+            }
           : undefined,
       });
     }
@@ -300,7 +307,9 @@ type PublishState =
   | { kind: 'done' }
   | { kind: 'error'; message: string };
 
-function usePublish(draft: Draft | undefined, onDone: () => void) {
+type Publishable = { name: string; pr?: Draft['pr'] };
+
+function usePublish(onDone: () => void) {
   const client = useClient();
   const viewer = useViewer();
   const repoInfo = useRepoInfo();
@@ -326,7 +335,7 @@ function usePublish(draft: Draft | undefined, onDone: () => void) {
     };
   }
 
-  async function canMergeNow(id: string) {
+  async function canMergeNow(id: string, now: boolean) {
     // GitHub reports UNKNOWN while it works out a fresh pull request.
     for (let attempt = 0; attempt < 5; attempt++) {
       const res = await client
@@ -336,14 +345,17 @@ function usePublish(draft: Draft | undefined, onDone: () => void) {
       const status =
         node?.__typename === 'PullRequest' ? node.mergeStateStatus : 'UNKNOWN';
       if (status !== 'UNKNOWN') {
-        return ['CLEAN', 'HAS_HOOKS', 'UNSTABLE'].includes(status);
+        // Publish now never merges past a check that has not passed (D1).
+        return ['CLEAN', 'HAS_HOOKS', ...(now ? [] : ['UNSTABLE'])].includes(
+          status
+        );
       }
       await new Promise(r => setTimeout(r, 1500));
     }
     return false;
   }
 
-  async function publish() {
+  async function publish(draft: Publishable | undefined, now = false) {
     if (!draft || !repoInfo) return;
     setState({ kind: 'working' });
     try {
@@ -356,7 +368,7 @@ function usePublish(draft: Draft | undefined, onDone: () => void) {
               baseRefName: repoInfo.defaultBranch,
               headRefName: draft.name,
               title: draftTitle(draft.name, draftPrefix(config)),
-              body: 'Published from the docs editor.',
+              body: now ? publishNowNote : 'Published from the docs editor.',
             },
           })
           .toPromise();
@@ -371,7 +383,7 @@ function usePublish(draft: Draft | undefined, onDone: () => void) {
       // Auto-merge refuses a pull request that can merge already, and is
       // off on repos without branch protection: merge now when GitHub allows.
       if (queued.error) {
-        if (!(await canMergeNow(id))) throw queued.error;
+        if (!(await canMergeNow(id, now))) throw queued.error;
         const merged = await client
           .mutation(MergePullRequest, { id, ...message })
           .toPromise();
@@ -450,6 +462,9 @@ type DraftsValue = {
   dismissPublished: () => void;
   publishState: PublishState;
   publish: () => void;
+  // Publishes `branch` without waiting for its preview; checks still apply.
+  publishNow: (branch: string) => Promise<void>;
+  publishingNow: boolean;
   discard: (draft: Draft) => Promise<void>;
   title: (branch: string) => string;
   // Where "Back to editing" goes from the review page.
@@ -488,10 +503,10 @@ function DraftsProviderInner(props: { children: ReactNode }) {
   const client = useClient();
   const list = useDraftList(head, branch);
   const current = list.drafts.find(d => d.name === branch);
-  const [publishState, publish, resetPublish] = usePublish(
-    current,
-    list.refresh
-  );
+  const [publishState, publish, resetPublish] = usePublish(list.refresh);
+  const latest = useRef(list.drafts);
+  latest.current = list.drafts;
+  const [nowBranch, setNowBranch] = useState<string | null>(null);
   const [saving, setSaving] = useState<Saving | null>(null);
   const [handoff] = useState(saveHandoff);
   const [published, setPublished] = useState<Published | null>(null);
@@ -599,10 +614,21 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     }
   };
 
+  const status = draftStatus(current);
+  // A failed check leaves an ordinary draft; leaving the draft ends it too.
+  useEffect(() => {
+    if (onLive || status === 'failed') setNowBranch(null);
+  }, [onLive, status]);
+  const publishingNow =
+    !onLive &&
+    status !== 'failed' &&
+    publishState.kind !== 'error' &&
+    (nowBranch === branch || (status === 'publishing' && !!current?.pr?.now));
+
   const value: DraftsValue = {
     drafts: list.drafts.filter(d => !discarded.includes(d.name)),
     current,
-    status: draftStatus(current),
+    status,
     onLive,
     saving,
     setSaving,
@@ -611,8 +637,17 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     publishState,
     publish: () => {
       setPublished(null);
-      publish();
+      publish(current);
     },
+    publishNow: name => {
+      setPublished(null);
+      setNowBranch(name);
+      return publish(
+        latest.current.find(d => d.name === name) ?? { name },
+        true
+      );
+    },
+    publishingNow,
     discard,
     title,
     editHref,

@@ -350,20 +350,27 @@ export function DraftBar() {
     );
   }
 
-  if (publishing) {
+  if (publishing || drafts.publishingNow) {
     return (
       <Strip tone="accent">
         {title}
         <Steps>
-          {[
-            saved,
-            <Step key="build" state="done">
-              Preview ready
-            </Step>,
-            <Step key="publish" state="working">
-              Publishing · about 2 min · you can close this tab
-            </Step>,
-          ]}
+          {drafts.publishingNow
+            ? [
+                saved,
+                <Step key="publish" state="working">
+                  Publishing now · about 2 min · you can close this tab
+                </Step>,
+              ]
+            : [
+                saved,
+                <Step key="build" state="done">
+                  Preview ready
+                </Step>,
+                <Step key="publish" state="working">
+                  Publishing · about 2 min · you can close this tab
+                </Step>,
+              ]}
         </Steps>
         <Actions>
           <Button prominence="high" isDisabled>

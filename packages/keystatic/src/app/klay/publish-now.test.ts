@@ -1,0 +1,104 @@
+/** @vitest-environment node */
+import { expect, test } from 'vitest';
+import { isPublishNow, publishNowNote, publishNowPlan } from './publish-now';
+
+const page = { collection: 'docsEn', slug: 'about-us' };
+const live = new Set(['src/assets/images/docs/logo.png', 'src/menu.yaml']);
+const base = {
+  page,
+  pages: [],
+  files: [],
+  saving: [],
+  pageText: 'We started Klay.',
+  isLive: (path: string) => live.has(path),
+};
+
+test('an edit on the live site publishes just the page', () => {
+  expect(publishNowPlan(base)).toEqual({
+    allowed: true,
+    page: 'changed',
+    pictures: [],
+  });
+});
+
+test('a new picture saved with the page goes live with it', () => {
+  const plan = publishNowPlan({
+    ...base,
+    saving: ['src/assets/images/docs/team-2026.png'],
+    pageText: '![Team](../../assets/images/docs/team-2026.png)',
+  });
+  expect(plan.allowed).toBe(true);
+  expect(plan.pictures).toEqual([
+    {
+      path: 'src/assets/images/docs/team-2026.png',
+      title: 'Team 2026',
+      kind: 'added',
+    },
+  ]);
+});
+
+test('a picture already live is not part of the save', () => {
+  const plan = publishNowPlan({
+    ...base,
+    saving: ['src/assets/images/docs/logo.png'],
+    pageText: '![Logo](../../assets/images/docs/logo.png)',
+  });
+  expect(plan).toEqual({ allowed: true, page: 'changed', pictures: [] });
+});
+
+test('a draft with only this page, new, and a picture it uses is allowed', () => {
+  const plan = publishNowPlan({
+    ...base,
+    pages: [{ ...page, kind: 'added' }],
+    files: [{ path: 'src/assets/images/docs/map.webp', kind: 'added' }],
+    pageText: '![Map](../../assets/images/docs/map.webp)',
+  });
+  expect(plan.allowed).toBe(true);
+  expect(plan.page).toBe('added');
+  expect(plan.pictures.map(p => p.title)).toEqual(['Map']);
+});
+
+test('a draft that changes another page is blocked', () => {
+  const plan = publishNowPlan({
+    ...base,
+    pages: [
+      { ...page, kind: 'changed' },
+      { collection: 'docsEn', slug: 'pricing', kind: 'changed' },
+    ],
+  });
+  expect(plan.allowed).toBe(false);
+});
+
+test('the same page in another language counts as another page', () => {
+  const plan = publishNowPlan({
+    ...base,
+    pages: [{ collection: 'docsId', slug: 'about-us', kind: 'added' }],
+  });
+  expect(plan.allowed).toBe(false);
+});
+
+test('a picture the page does not use is blocked', () => {
+  const plan = publishNowPlan({
+    ...base,
+    files: [{ path: 'src/assets/images/docs/old.png', kind: 'removed' }],
+  });
+  expect(plan.allowed).toBe(false);
+});
+
+test('a non-picture file in the draft or the save is blocked', () => {
+  expect(
+    publishNowPlan({
+      ...base,
+      files: [{ path: 'astro.config.mjs', kind: 'changed' }],
+    }).allowed
+  ).toBe(false);
+  expect(publishNowPlan({ ...base, saving: ['src/menu.yaml'] }).allowed).toBe(
+    false
+  );
+});
+
+test('the pull request note marks a Publish now', () => {
+  expect(isPublishNow(`Some text\n\n${publishNowNote}`)).toBe(true);
+  expect(isPublishNow('Published from the docs editor.')).toBe(false);
+  expect(isPublishNow(null)).toBe(false);
+});

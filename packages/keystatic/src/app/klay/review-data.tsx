@@ -69,6 +69,34 @@ export function useLanguageOf() {
   }, [config]);
 }
 
+// Pages the draft changes, and every other file it changes.
+export function draftChanges(
+  config: Config,
+  changed: ReturnType<typeof useChanged>,
+  current: TreeData,
+  base: TreeData
+) {
+  const dirs = Object.keys(config.collections ?? {}).map(c =>
+    getCollectionPath(config, c)
+  );
+  const pages: PageChange[] = [];
+  for (const [collection, c] of changed.collections) {
+    for (const slug of c.added) {
+      pages.push({ collection, slug, kind: 'added' });
+    }
+    for (const slug of c.changed) {
+      pages.push({ collection, slug, kind: 'changed' });
+    }
+    for (const slug of c.removed) {
+      pages.push({ collection, slug, kind: 'removed' });
+    }
+  }
+  const files = diffEntries(current.entries, base.entries).filter(
+    f => !dirs.some(d => f.path.startsWith(`${d}/`))
+  );
+  return { pages, files };
+}
+
 type Fetch = { path: string; sha: string; commit: string };
 
 export type DraftReview =
@@ -96,23 +124,7 @@ export function useDraftReview(): DraftReview {
     const head = branches.get(branch)?.commitSha ?? '';
     const baseHead = branches.get(repoInfo.defaultBranch)?.commitSha ?? '';
     const collections = Object.keys(config.collections ?? {});
-    const dirs = collections.map(c => getCollectionPath(config, c));
-
-    const pages: PageChange[] = [];
-    for (const [collection, c] of changed.collections) {
-      for (const slug of c.added) {
-        pages.push({ collection, slug, kind: 'added' });
-      }
-      for (const slug of c.changed) {
-        pages.push({ collection, slug, kind: 'changed' });
-      }
-      for (const slug of c.removed) {
-        pages.push({ collection, slug, kind: 'removed' });
-      }
-    }
-    const files = diffEntries(current.entries, base.entries).filter(
-      f => !dirs.some(d => f.path.startsWith(`${d}/`))
-    );
+    const { pages, files } = draftChanges(config, changed, current, base);
 
     // Every page in the draft, with its address when it has one.
     const all = collections.flatMap(collection => {
