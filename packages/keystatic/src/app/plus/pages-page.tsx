@@ -7,6 +7,7 @@ import { Icon } from '@keystar/ui/icon';
 import { plusIcon } from '@keystar/ui/icon/icons/plusIcon';
 import { Box, Flex } from '@keystar/ui/layout';
 import { TextLink } from '@keystar/ui/link';
+import { DialogContainer } from '@keystar/ui/dialog';
 import { ActionMenu } from '@keystar/ui/menu';
 import { Picker } from '@keystar/ui/picker';
 import { ProgressCircle } from '@keystar/ui/progress';
@@ -20,6 +21,7 @@ import { useConfig } from '../shell/context';
 import { useCurrentBranch } from '../shell/data';
 import { liveHrefFor, useNow } from './draft-data';
 import { ago, capitalize, PageRow } from './pages';
+import { DeletePageDialog } from './page-delete-dialog';
 import { useLanguages, usePages, useRestorePage } from './pages-data';
 import { languageList } from './review';
 
@@ -75,6 +77,7 @@ export function PagesPage() {
   const [missingOnly, setMissingOnly] = useState(false);
   const [view, setView] = useState<'all' | 'changed' | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<PageRow | null>(null);
 
   const base = `/keystatic/branch/${encodeURIComponent(branch)}`;
   const editHref = (collection: string, slug: string) =>
@@ -102,7 +105,8 @@ export function PagesPage() {
 
   const onAction = (row: PageRow, key: Key) => {
     const k = String(key);
-    if (k.startsWith('edit:')) router.push(editHref(k.slice(5), row.slug));
+    if (k === 'edit') router.push(editHref(row.collection, row.slug));
+    if (k === 'delete') setDeleting(row);
     if (k === 'duplicate') {
       router.push(
         `${base}/collection/${encodeURIComponent(
@@ -139,14 +143,12 @@ export function PagesPage() {
 
   const hasLive = config.storage.kind !== 'local' && !!config.storage.siteUrl;
   const menuItems = (row: PageRow) => [
-    ...row.languages.map((language, i) => ({
-      key: `edit:${languages.find(l => l.language === language)!.collection}`,
-      label: i === 0 ? 'Edit' : `Edit in ${language}`,
-    })),
+    { key: 'edit', label: 'Edit' },
     { key: 'duplicate', label: 'Duplicate as new page' },
     ...(hasLive && row.draft !== 'new'
       ? [{ key: 'live', label: 'Open on the live site' }]
       : []),
+    { key: 'delete', label: 'Delete page…' },
   ];
 
   return (
@@ -289,13 +291,13 @@ export function PagesPage() {
                           {draftChip[row.draft].label}
                         </Badge>
                       )}
-                      {row.draft === 'deleted' && (
+                      {row.deletedIn.length > 0 && (
                         <ActionButton
                           prominence="low"
                           isDisabled={restoring === row.slug}
                           onPress={() => undo(row)}
                         >
-                          Undo
+                          {row.draft === 'deleted' ? 'Undo' : 'Undo delete'}
                         </ActionButton>
                       )}
                     </Flex>
@@ -341,6 +343,15 @@ export function PagesPage() {
               Readers see none of this until you publish.
             </Text>
           )}
+          <DialogContainer onDismiss={() => setDeleting(null)}>
+            {deleting && (
+              <DeletePageDialog
+                slug={deleting.slug}
+                title={deleting.title}
+                collection={deleting.collection}
+              />
+            )}
+          </DialogContainer>
         </Flex>
       </Box>
     </Flex>

@@ -454,6 +454,8 @@ type DraftsValue = {
   // Where "Back to editing" goes from the review page.
   editHref: string;
   reviewHref: string;
+  // Reloads the branch heads, then navigates: needed after a commit made here.
+  leaveTo: (href: string) => Promise<void>;
 };
 
 const DraftsContext = createContext<DraftsValue | null>(null);
@@ -595,6 +597,7 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     title,
     editHref,
     reviewHref,
+    leaveTo,
   };
   return (
     <DraftsContext.Provider value={value}>

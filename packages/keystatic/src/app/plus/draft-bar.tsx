@@ -5,6 +5,7 @@ import { Icon } from '@keystar/ui/icon';
 import { checkIcon } from '@keystar/ui/icon/icons/checkIcon';
 import { circleIcon } from '@keystar/ui/icon/icons/circleIcon';
 import { externalLinkIcon } from '@keystar/ui/icon/icons/externalLinkIcon';
+import { filePlusIcon } from '@keystar/ui/icon/icons/filePlusIcon';
 import { globeIcon } from '@keystar/ui/icon/icons/globeIcon';
 import { xIcon } from '@keystar/ui/icon/icons/xIcon';
 import { Box, Flex } from '@keystar/ui/layout';
@@ -16,6 +17,7 @@ import { useRouter } from '../router';
 import { useConfig } from '../shell/context';
 import { previewHrefFor, useDraftsContext, useNow } from './draft-data';
 import { savedAgo } from './draft-status';
+import { translateFrom } from './translate';
 
 type Tone = 'neutral' | 'accent' | 'positive' | 'critical';
 
@@ -53,7 +55,14 @@ function Strip(props: {
         borderBottom: `${tokenSchema.size.border.regular} solid ${tone.border}`,
         flexShrink: 0,
         paddingBlock: tokenSchema.size.space.regular,
-        paddingInline: tokenSchema.size.space.xlarge,
+        // Same side padding as the page header below it.
+        paddingInline: tokenSchema.size.space.medium,
+        [breakpointQueries.above.mobile]: {
+          paddingInline: tokenSchema.size.space.xlarge,
+        },
+        [breakpointQueries.above.tablet]: {
+          paddingInline: tokenSchema.size.space.xxlarge,
+        },
       })}
     >
       <div
@@ -195,6 +204,9 @@ function liveHint(params: string[]) {
   ) {
     return 'New pages and deletions also go into a draft first.';
   }
+  if (params[2] === 'menu-sections') {
+    return 'Saving the menu starts a draft. Readers see it after you publish.';
+  }
   return 'Edit any page and save it as a draft. Readers see nothing until you publish.';
 }
 
@@ -252,6 +264,17 @@ export function DraftBar() {
             <Icon src={xIcon} />
           </ActionButton>
         </Actions>
+      </Strip>
+    ) : router.params[4] === 'create' && !translateFrom(router.href) ? (
+      <Strip tone="neutral">
+        <Flex alignItems="center" gap="small">
+          <Icon src={filePlusIcon} color="neutralSecondary" />
+          <Text weight="semibold">New page, not saved yet.</Text>
+        </Flex>
+        <Text color="neutralSecondary">
+          Saving starts a draft named after the title. Readers see it after you
+          publish.
+        </Text>
       </Strip>
     ) : (
       <Strip tone="neutral">

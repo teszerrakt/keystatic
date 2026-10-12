@@ -14,6 +14,8 @@ import {
 } from '../shell/data';
 import { fetchBlob } from '../useItemData';
 import { getEntriesInCollectionWithTreeKey } from '../utils';
+import { sectionLabel } from './menu-sections';
+import { useMenuSections } from './menu-sections-data';
 import { buildPageRows, frontmatterField, Language, PageRow } from './pages';
 import { ChangeKind } from './review';
 import { pageFile, useLanguageOf } from './review-data';
@@ -59,16 +61,6 @@ export function useLanguages(): Language[] {
   }, [config, languageOf]);
 }
 
-function sectionLabels(
-  config: ReturnType<typeof useConfig>,
-  collection: string
-) {
-  const field = config.collections?.[collection]?.schema.section as
-    | { options?: readonly { label: string; value: string }[] }
-    | undefined;
-  return new Map(field?.options?.map(o => [o.value, o.label]) ?? []);
-}
-
 export type PagesData =
   | { kind: 'loading' }
   | { kind: 'loaded'; rows: PageRow[]; onLive: boolean };
@@ -82,6 +74,7 @@ export function usePages(): PagesData {
   const branch = useCurrentBranch();
   const client = useClient();
   const languages = useLanguages();
+  const { sections } = useMenuSections();
   const [texts, setTexts] = useState(new Map<string, string>());
   const [updated, setUpdated] = useState(new Map<string, string>());
   const onLive = branch === repoInfo?.defaultBranch;
@@ -228,8 +221,9 @@ export function usePages(): PagesData {
       const f = plan.files.get(`${c}/${s}`);
       return f ? texts.get(f.sha) : undefined;
     };
+    const main = languages[0]?.language ?? '';
     const labels = new Map(
-      languages.map(l => [l.collection, sectionLabels(config, l.collection)])
+      (sections ?? []).map(s => [s.id, sectionLabel(s, main, main)])
     );
     const rows = buildPageRows({
       languages,
@@ -245,14 +239,14 @@ export function usePages(): PagesData {
         for (const l of languages) {
           const t = text(l.collection, s);
           const value = t && frontmatterField(t, 'section');
-          if (value) return labels.get(l.collection)?.get(value) ?? value;
+          if (value) return labels.get(value) ?? value;
         }
         return undefined;
       },
       updated: (c, s) => updated.get(`${c}/${s}`),
     });
     return { kind: 'loaded', rows, onLive };
-  }, [plan, texts, updated, languages, config, onLive]);
+  }, [plan, texts, updated, languages, sections, onLive]);
 }
 
 // Puts a page this draft deletes back, as it is on the live site.

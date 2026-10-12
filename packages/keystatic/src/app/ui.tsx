@@ -53,9 +53,11 @@ function parseParamsWithoutBranch(params: string[]) {
   }
   if (
     params.length === 1 &&
-    (params[0] === 'publish' || params[0] === 'pages')
+    (params[0] === 'publish' ||
+      params[0] === 'pages' ||
+      params[0] === 'menu-sections')
   ) {
-    return { plus: params[0] as 'publish' | 'pages' };
+    return { plus: params[0] as 'publish' | 'pages' | 'menu-sections' };
   }
   if (params.length === 2 && params[0] === 'singleton') {
     return { singleton: params[1] };

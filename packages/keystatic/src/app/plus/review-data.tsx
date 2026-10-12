@@ -40,7 +40,7 @@ export function pageFile(tree: TreeData, dir: string, slug: string) {
 
 // `/help/{slug}/` from a preview URL on the draft host; links are checked
 // only in collections whose address is known.
-function pathTemplate(config: Config, collection: string) {
+export function pathTemplate(config: Config, collection: string) {
   const preview = config.collections?.[collection]?.previewUrl;
   const host =
     config.storage.kind === 'local'
