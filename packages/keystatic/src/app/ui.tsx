@@ -55,9 +55,12 @@ function parseParamsWithoutBranch(params: string[]) {
     params.length === 1 &&
     (params[0] === 'publish' ||
       params[0] === 'pages' ||
-      params[0] === 'menu-sections')
+      params[0] === 'menu-sections' ||
+      params[0] === 'images')
   ) {
-    return { klay: params[0] as 'publish' | 'pages' | 'menu-sections' };
+    return {
+      klay: params[0] as 'publish' | 'pages' | 'menu-sections' | 'images',
+    };
   }
   if (params.length === 2 && params[0] === 'singleton') {
     return { singleton: params[1] };

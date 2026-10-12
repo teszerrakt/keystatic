@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react';
 
+import { ImageLibraryProvider } from './image-picker';
 import { MenuSection, serializeSections } from './menu-sections';
 import { useMenuSetup } from './menu-sections-data';
 import { useLanguages } from './pages-data';
@@ -85,7 +86,9 @@ export function PageFormProvider(props: {
         setSections,
       }}
     >
-      {props.children}
+      <ImageLibraryProvider extras={extras}>
+        {props.children}
+      </ImageLibraryProvider>
     </PageFormContext.Provider>
   );
 }

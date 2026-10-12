@@ -22,6 +22,11 @@ import { TooltipTrigger, Tooltip } from '@keystar/ui/tooltip';
 import { getUploadedFileObject } from '../../../image/ui';
 import { EditorState, NodeSelection } from 'prosemirror-state';
 import { useEditorDispatchCommand, useEditorSchema } from '../editor-view';
+import {
+  libraryImageAttrs,
+  libraryImagePath,
+  useImageLibrary,
+} from '../image-library';
 import { Node } from 'prosemirror-model';
 
 export function ImagePopover(props: {
@@ -31,7 +36,85 @@ export function ImagePopover(props: {
 }) {
   let stringFormatter = useLocalizedStringFormatter(l10nMessages);
   const runCommand = useEditorDispatchCommand();
+  const schema = useEditorSchema();
+  const library = useImageLibrary(schema.config);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const setAttrs = (attrs: Record<string, unknown>) =>
+    runCommand((state, dispatch) => {
+      if (dispatch) {
+        const { tr } = state;
+        tr.setNodeMarkup(props.pos, undefined, {
+          ...props.node.attrs,
+          ...attrs,
+        });
+        const newState = state.apply(tr);
+        tr.setSelection(NodeSelection.create(newState.doc, props.pos));
+        dispatch(tr);
+      }
+      return true;
+    });
+  const remove = () =>
+    runCommand((state, dispatch) => {
+      if (dispatch) {
+        dispatch(state.tr.delete(props.pos, props.pos + props.node.nodeSize));
+      }
+      return true;
+    });
+  if (library) {
+    const { attrs } = props.node;
+    return (
+      <>
+        <Flex gap="xsmall" padding="small">
+          <ActionButton prominence="low" onPress={() => setDialogOpen(true)}>
+            {stringFormatter.format('edit')}
+          </ActionButton>
+          <ActionButton prominence="low" onPress={() => setPicking(true)}>
+            Change image
+          </ActionButton>
+          <TooltipTrigger>
+            <ActionButton prominence="low" onPress={remove}>
+              Remove
+            </ActionButton>
+            <Tooltip>Takes it off this page only.</Tooltip>
+          </TooltipTrigger>
+        </Flex>
+        <DialogContainer onDismiss={() => setPicking(false)}>
+          {picking && (
+            <library.library.Picker
+              directory={library.directory}
+              current={
+                attrs.fromLibrary
+                  ? {
+                      path: libraryImagePath(schema.config, attrs.filename),
+                      alt: attrs.alt,
+                      title: attrs.title,
+                    }
+                  : undefined
+              }
+              onPick={image => {
+                setPicking(false);
+                setAttrs(libraryImageAttrs(schema.config, image));
+              }}
+            />
+          )}
+        </DialogContainer>
+        <DialogContainer onDismiss={() => setDialogOpen(false)}>
+          {dialogOpen && (
+            <ImageDialog
+              alt={attrs.alt}
+              title={attrs.title}
+              filename={attrs.fromLibrary ? undefined : attrs.filename}
+              onSubmit={value => {
+                setAttrs(value);
+                setDialogOpen(false);
+              }}
+            />
+          )}
+        </DialogContainer>
+      </>
+    );
+  }
   return (
     <>
       <Flex gap="regular" padding="regular">
@@ -126,8 +209,9 @@ export function ImagePopover(props: {
 function ImageDialog(props: {
   alt: string;
   title: string;
-  filename: string;
-  onSubmit: (value: { alt: string; filename: string; title: string }) => void;
+  // Absent for a library picture: renaming it would break other pages.
+  filename?: string;
+  onSubmit: (value: { alt: string; filename?: string; title: string }) => void;
 }) {
   const schema = useEditorSchema();
   const [state, setState] = useState({ alt: props.alt, title: props.title });
@@ -141,7 +225,7 @@ function ImageDialog(props: {
   )(state);
 
   const [filenameWithoutExtension, filenameExtension] = splitFilename(
-    props.filename
+    props.filename ?? ''
   );
   const [forceValidation, setForceValidation] = useState(false);
   let [fileName, setFileName] = useState(filenameWithoutExtension);
@@ -159,14 +243,16 @@ function ImageDialog(props: {
           event.preventDefault();
           setForceValidation(true);
           if (
-            fileName &&
+            (fileName || props.filename === undefined) &&
             clientSideValidateProp(imagesSchema, state, undefined)
           ) {
             dismiss();
             props.onSubmit({
               alt: state.alt,
               title: state.title,
-              filename: [fileName, filenameExtension].join('.'),
+              ...(props.filename === undefined
+                ? {}
+                : { filename: [fileName, filenameExtension].join('.') }),
             });
           }
         }}
@@ -174,29 +260,31 @@ function ImageDialog(props: {
         <Heading>Image details</Heading>
         <Content>
           <Flex gap="large" direction="column">
-            <TextField
-              label="File name"
-              onChange={setFileName}
-              onBlur={() => setFileNameTouched(true)}
-              value={fileName}
-              isRequired
-              errorMessage={
-                (fileNameTouched || forceValidation) && !fileName
-                  ? 'Please provide a file name.'
-                  : undefined
-              }
-              endElement={
-                filenameExtension ? (
-                  <Flex
-                    alignItems="center"
-                    justifyContent="center"
-                    paddingEnd="regular"
-                  >
-                    <Text color="neutralTertiary">.{filenameExtension}</Text>
-                  </Flex>
-                ) : null
-              }
-            />
+            {props.filename !== undefined && (
+              <TextField
+                label="File name"
+                onChange={setFileName}
+                onBlur={() => setFileNameTouched(true)}
+                value={fileName}
+                isRequired
+                errorMessage={
+                  (fileNameTouched || forceValidation) && !fileName
+                    ? 'Please provide a file name.'
+                    : undefined
+                }
+                endElement={
+                  filenameExtension ? (
+                    <Flex
+                      alignItems="center"
+                      justifyContent="center"
+                      paddingEnd="regular"
+                    >
+                      <Text color="neutralTertiary">.{filenameExtension}</Text>
+                    </Flex>
+                  ) : null
+                }
+              />
+            )}
             <FormValueContentFromPreviewProps
               forceValidation={forceValidation}
               autoFocus

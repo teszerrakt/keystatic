@@ -1,13 +1,14 @@
 import { Config } from '../../config';
 import { isDraftsOnly } from './drafts';
 import { HomePage } from './home-page';
+import { ImagesPage } from './images-page';
 import { PagesPage } from './pages-page';
 import { ReviewPage } from './review-page';
 import { menuSetup } from './menu-sections-data';
 import { MenuSectionsPage } from './sections-page';
 
 type Params = {
-  klay?: 'publish' | 'pages' | 'menu-sections';
+  klay?: 'publish' | 'pages' | 'menu-sections' | 'images';
   collection?: string;
   kind?: string;
   singleton?: string;
@@ -19,6 +20,7 @@ export function klayRoute(config: Config, params: Params) {
   if (params.klay === 'pages') return <PagesPage />;
   if (!isDraftsOnly(config)) return null;
   if (params.klay === 'menu-sections') return <MenuSectionsPage />;
+  if (params.klay === 'images') return <ImagesPage />;
   if (params.singleton && params.singleton === menuSetup(config)?.singleton) {
     return <MenuSectionsPage />;
   }

@@ -5,8 +5,10 @@ import { Text } from '@keystar/ui/typography';
 
 import { useRouter } from '../router';
 import { useAppState } from '../shell/context';
-import { useChanged } from '../shell/data';
+import { useChanged, useTree } from '../shell/data';
 import { useDraftsContext } from './draft-data';
+import { libraryImages } from './images';
+import { useImageDirectory } from './images-data';
 import { useMenuSections } from './menu-sections-data';
 import { useLanguages } from './pages-data';
 
@@ -18,6 +20,8 @@ export function DraftNav() {
   const changed = useChanged();
   const languages = useLanguages();
   const menu = useMenuSections();
+  const trees = useTree();
+  const imageDir = useImageDirectory();
   const slugs = new Set<string>();
   if (drafts && !drafts.onLive) {
     for (const l of languages) {
@@ -27,6 +31,14 @@ export function DraftNav() {
       }
     }
   }
+  const imagesChanged =
+    drafts && !drafts.onLive && imageDir && trees.merged.kind === 'loaded'
+      ? libraryImages(
+          imageDir,
+          trees.merged.data.current.entries,
+          trees.merged.data.default.entries
+        ).filter(i => i.draft).length
+      : 0;
   const path = router.pathname;
   const onPages =
     path.startsWith(`${basePath}/pages`) ||
@@ -64,6 +76,21 @@ export function DraftNav() {
             {drafts && !drafts.onLive && menu.changed && (
               <Badge tone="accent" marginStart="auto">
                 Changed
+              </Badge>
+            )}
+          </NavItem>
+        )}
+        {imageDir && (
+          <NavItem
+            href={`${basePath}/images`}
+            aria-current={
+              path.startsWith(`${basePath}/images`) ? 'page' : undefined
+            }
+          >
+            <Text>Images</Text>
+            {imagesChanged > 0 && (
+              <Badge tone="accent" marginStart="auto">
+                {`${imagesChanged} changed`}
               </Badge>
             )}
           </NavItem>

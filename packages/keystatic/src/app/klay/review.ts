@@ -17,7 +17,7 @@ export type Group = {
   rows: Row[];
 };
 
-const PICTURE = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
+export const PICTURE = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 
 export function humanize(name: string) {
   const words = name
@@ -172,13 +172,24 @@ export type Problem = {
 
 const withSlash = (p: string) => (p.endsWith('/') ? p : `${p}/`);
 
-function resolveFile(fromFile: string, target: string) {
+export function resolveFile(fromFile: string, target: string) {
   const parts = fromFile.split('/').slice(0, -1);
   for (const seg of target.split('/')) {
     if (seg === '..') parts.pop();
     else if (seg !== '.' && seg !== '') parts.push(seg);
   }
   return parts.join('/');
+}
+
+// Relative and root-relative link and picture targets, without query or hash.
+export function linkTargets(text: string) {
+  const targets = [
+    ...text.matchAll(/\]\(\s*<?([^)\s>]+)/g),
+    ...text.matchAll(/(?:href|src)="([^"]+)"/g),
+  ].map(m => m[1].split(/[?#]/)[0]);
+  return [...new Set(targets)].filter(
+    t => t && !/^[a-z][a-z0-9+.-]*:/i.test(t)
+  );
 }
 
 // Broken links warn and never block: the writer decides.
@@ -191,13 +202,7 @@ export function findProblems(input: {
 }): Problem[] {
   const problems: Problem[] = [];
   for (const page of input.pages) {
-    const targets = [
-      ...page.text.matchAll(/\]\(\s*<?([^)\s>]+)/g),
-      ...page.text.matchAll(/(?:href|src)="([^"]+)"/g),
-    ].map(m => m[1]);
-    for (const raw of new Set(targets)) {
-      const target = raw.split(/[?#]/)[0];
-      if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+    for (const target of linkTargets(page.text)) {
       if (PICTURE.test(target)) {
         if (target.startsWith('/')) continue;
         if (!input.files.has(resolveFile(page.filePath, target))) {
