@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import {
   changeSummary,
   diffEntries,
+  draftChanges,
   findProblems,
   frontmatterTitle,
   groupChanges,
@@ -122,5 +123,33 @@ test('pictures resolve from the page file', () => {
   });
   expect(problems.map(p => [p.kind, p.target])).toEqual([
     ['missing-picture', '../../../assets/images/docs/b.webp'],
+  ]);
+});
+
+test('draft changes split pages from the files outside page folders', () => {
+  const changes = draftChanges({
+    collections: new Map([
+      [
+        'docsEn',
+        {
+          added: new Set(['new']),
+          changed: new Set(['old']),
+          removed: new Set<string>(),
+        },
+      ],
+    ]),
+    current: new Map([
+      ['src/content/docs/help/new.md', { sha: '1' }],
+      ['src/assets/images/docs/a.png', { sha: '2' }],
+    ]),
+    base: new Map(),
+    dirs: ['src/content/docs/help'],
+  });
+  expect(changes.pages).toEqual([
+    { collection: 'docsEn', slug: 'new', kind: 'added' },
+    { collection: 'docsEn', slug: 'old', kind: 'changed' },
+  ]);
+  expect(changes.files).toEqual([
+    { path: 'src/assets/images/docs/a.png', kind: 'added' },
   ]);
 });

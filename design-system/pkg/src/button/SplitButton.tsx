@@ -46,7 +46,6 @@ const splitClassName = css({
   [`& > ${root}:last-child`]: {
     ...flatStart,
     '&::after': flatStart,
-    // The divider takes the half's own text colour, so it suits every tone.
     borderInlineStart: `${tokenSchema.size.border.regular} solid color-mix(in srgb, currentColor 35%, transparent)`,
     paddingInline: 0,
   },

@@ -107,6 +107,19 @@ export function serializeEntryToFiles(args: {
   ];
 }
 
+type CommitExtrasLike = {
+  files(): { path: string; contents: Uint8Array }[];
+};
+
+// A save's files, the entry's own file first; paths are under the content root.
+export function entryFiles(
+  args: Parameters<typeof serializeEntryToFiles>[0] & {
+    extras?: CommitExtrasLike;
+  }
+) {
+  return [...serializeEntryToFiles(args), ...(args.extras?.files() ?? [])];
+}
+
 export const draftsOnlyReason =
   'The live site is never edited directly. This change is saved as a draft.';
 
@@ -120,7 +133,7 @@ export function useUpsertItem(args: {
   basePath: string;
   slug: { value: string; field: string } | undefined;
   /** Klay fork: other files to write in the same commit. */
-  extras?: { files(): { path: string; contents: Uint8Array }[] };
+  extras?: CommitExtrasLike;
 }) {
   const [state, setState] = useState<
     | { kind: 'idle' }
@@ -162,18 +175,10 @@ export function useUpsertItem(args: {
         setState({ kind: 'loading' });
 
         const pathPrefix = getPathPrefix(args.config.storage) ?? '';
-        let additions = serializeEntryToFiles({
-          basePath: args.basePath,
-          schema: args.schema,
-          format: args.format,
-          state: args.state,
-          slug: args.slug,
-        })
-          .concat(args.extras?.files() ?? [])
-          .map(addition => ({
-            ...addition,
-            path: pathPrefix + addition.path,
-          }));
+        let additions = entryFiles(args).map(addition => ({
+          ...addition,
+          path: pathPrefix + addition.path,
+        }));
 
         const additionPathToSha = new Map(
           await Promise.all(

@@ -6,7 +6,7 @@ import {
   PICTURE,
 } from './review';
 
-// Marks the pull request, so the draft list and Recently published can tell.
+// Read back from the pull request body.
 export const publishNowNote =
   'Published from the docs editor with Publish now, without a preview.';
 

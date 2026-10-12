@@ -212,14 +212,13 @@ function useDraftList(head: string | undefined, branch: string) {
   const config = useConfig();
   const repoInfo = useRepoInfo();
   const prefix = draftPrefix(config);
+  const client = useClient();
+  const owner = repoInfo?.upstream.owner ?? '';
+  const name = repoInfo?.upstream.name ?? '';
   const [result, refetch] = useQuery({
     query: DraftsQuery,
     pause: !repoInfo || !isDraftsOnly(config),
-    variables: {
-      owner: repoInfo?.upstream.owner ?? '',
-      name: repoInfo?.upstream.name ?? '',
-      query: prefix,
-    },
+    variables: { owner, name, query: prefix },
     requestPolicy: 'cache-and-network',
   });
 
@@ -294,22 +293,30 @@ function useDraftList(head: string | undefined, branch: string) {
     return () => clearInterval(id);
   }, [busy, missing, refetch]);
 
+  // Resolves once the list holds GitHub's answer.
   const refresh = useCallback(
-    () => refetch({ requestPolicy: 'network-only' }),
-    [refetch]
+    () =>
+      client
+        .query(
+          DraftsQuery,
+          { owner, name, query: prefix },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise(),
+    [client, owner, name, prefix]
   );
   return { drafts, published, missing, refresh };
 }
 
 type PublishState =
   | { kind: 'idle' }
-  | { kind: 'working' }
+  | { kind: 'working'; now: boolean }
   | { kind: 'done' }
   | { kind: 'error'; message: string };
 
 type Publishable = { name: string; pr?: Draft['pr'] };
 
-function usePublish(onDone: () => void) {
+function usePublish(onDone: () => Promise<unknown>) {
   const client = useClient();
   const viewer = useViewer();
   const repoInfo = useRepoInfo();
@@ -357,7 +364,7 @@ function usePublish(onDone: () => void) {
 
   async function publish(draft: Publishable | undefined, now = false) {
     if (!draft || !repoInfo) return;
-    setState({ kind: 'working' });
+    setState({ kind: 'working', now });
     try {
       let id = draft.pr?.id;
       if (!id) {
@@ -389,8 +396,10 @@ function usePublish(onDone: () => void) {
           .toPromise();
         if (merged.error) throw merged.error;
       }
+      // Working until the list shows the queued pull request, so the bar
+      // never drops back to the preview steps in between.
+      await onDone();
       setState({ kind: queued.error ? 'done' : 'idle' });
-      onDone();
     } catch (e) {
       setState({ kind: 'error', message: explain((e as Error).message) });
     }
@@ -464,7 +473,8 @@ type DraftsValue = {
   publish: () => void;
   // Publishes `branch` without waiting for its preview; checks still apply.
   publishNow: (branch: string) => Promise<void>;
-  publishingNow: boolean;
+  // Which publish is running on the open draft, if any.
+  publishing: 'review' | 'now' | null;
   discard: (draft: Draft) => Promise<void>;
   title: (branch: string) => string;
   // Where "Back to editing" goes from the review page.
@@ -506,7 +516,6 @@ function DraftsProviderInner(props: { children: ReactNode }) {
   const [publishState, publish, resetPublish] = usePublish(list.refresh);
   const latest = useRef(list.drafts);
   latest.current = list.drafts;
-  const [nowBranch, setNowBranch] = useState<string | null>(null);
   const [saving, setSaving] = useState<Saving | null>(null);
   const [handoff] = useState(saveHandoff);
   const [published, setPublished] = useState<Published | null>(null);
@@ -615,15 +624,18 @@ function DraftsProviderInner(props: { children: ReactNode }) {
   };
 
   const status = draftStatus(current);
-  // A failed check leaves an ordinary draft; leaving the draft ends it too.
-  useEffect(() => {
-    if (onLive || status === 'failed') setNowBranch(null);
-  }, [onLive, status]);
-  const publishingNow =
-    !onLive &&
-    status !== 'failed' &&
-    publishState.kind !== 'error' &&
-    (nowBranch === branch || (status === 'publishing' && !!current?.pr?.now));
+  // A failed check leaves an ordinary draft.
+  const publishing = onLive
+    ? null
+    : publishState.kind === 'working'
+    ? publishState.now
+      ? 'now'
+      : 'review'
+    : status === 'publishing'
+    ? current?.pr?.now
+      ? 'now'
+      : 'review'
+    : null;
 
   const value: DraftsValue = {
     drafts: list.drafts.filter(d => !discarded.includes(d.name)),
@@ -641,13 +653,12 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     },
     publishNow: name => {
       setPublished(null);
-      setNowBranch(name);
       return publish(
         latest.current.find(d => d.name === name) ?? { name },
         true
       );
     },
-    publishingNow,
+    publishing,
     discard,
     title,
     editHref,

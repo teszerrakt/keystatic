@@ -181,11 +181,10 @@ function ItemPageInner(
     );
   };
   const drafts = useDraftsContext();
-  const draftCopy = useDraftSaveCopy();
   const isSavingDisabled =
     updateResult.kind === 'loading' ||
     !props.hasChanged ||
-    !!drafts?.publishingNow;
+    drafts?.publishing === 'now';
 
   const onUpdate = useEventCallback(async () => {
     if (isSavingDisabled) return false;
@@ -288,15 +287,13 @@ function ItemPageInner(
             onReset={props.onReset}
             viewHref={viewHref}
             previewHref={previewHref}
-            publishNow={
-              draftCopy ? (
+            saveButton={
+              isDraftsOnly(config) ? (
                 <SaveSplitButton
                   formID={formID}
-                  label={draftCopy.save}
                   isDisabled={isSavingDisabled}
                   onSave={() => save(false)}
                   onPublishNow={onPublishNow}
-                  config={config}
                   page={{ collection, slug: itemSlug, state: props.state }}
                 />
               ) : undefined
@@ -618,8 +615,7 @@ function HeaderActions(props: {
   previewHref?: string;
   viewHref?: string;
   deleteDialog?: ReactElement;
-  // Replaces the save button in drafts-only mode.
-  publishNow?: ReactElement;
+  saveButton?: ReactElement;
 }) {
   let {
     formID,
@@ -781,14 +777,14 @@ function HeaderActions(props: {
           </Item>
         )}
       </ActionGroup>
-      {props.publishNow ?? (
+      {props.saveButton ?? (
         <Button
           form={formID}
-          isDisabled={isLoading || (!!draftCopy && !hasChanged)}
+          isDisabled={isLoading}
           prominence="high"
           type="submit"
         >
-          {draftCopy?.save ?? stringFormatter.format('save')}
+          {stringFormatter.format('save')}
         </Button>
       )}
       <DialogContainer onDismiss={() => setDeleteAlertOpen(false)}>

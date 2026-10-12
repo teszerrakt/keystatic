@@ -11,15 +11,21 @@ import { Item, Menu } from '@keystar/ui/menu';
 import { css, tokenSchema } from '@keystar/ui/style';
 import { Text } from '@keystar/ui/typography';
 
-import { Config } from '../../config';
-import { getCollectionFormat, getCollectionItemPath } from '../path-utils';
+import {
+  getCollectionFormat,
+  getCollectionItemPath,
+  getCollectionPath,
+} from '../path-utils';
+import { useConfig } from '../shell/context';
 import { useChanged, useTree } from '../shell/data';
-import { serializeEntryToFiles } from '../updating';
+import { entryFiles } from '../updating';
 import { getSlugFromState } from '../utils';
+import { useDraftSaveCopy } from './drafts';
 import { usePageForm } from './page-form';
 import { pageTitleFrom } from './page-title';
 import { publishNowPlan, PublishNowPlan } from './publish-now';
-import { draftChanges, useLanguageOf } from './review-data';
+import { draftChanges } from './review';
+import { useLanguageOf } from './review-data';
 
 type Page = {
   collection: string;
@@ -28,7 +34,8 @@ type Page = {
 };
 
 // Reads the draft and serializes the page, so it runs when the menu opens.
-function usePlanPublishNow(config: Config, page: Page) {
+function usePlanPublishNow(page: Page) {
+  const config = useConfig();
   const trees = useTree();
   const changed = useChanged();
   const extras = usePageForm()?.extras;
@@ -39,17 +46,25 @@ function usePlanPublishNow(config: Config, page: Page) {
     const { current, default: live } = trees.merged.data;
     const collection = config.collections![page.collection];
     const slug = getSlugFromState(collection, page.state);
-    const [own, ...others] = serializeEntryToFiles({
+    const [own, ...others] = entryFiles({
       basePath: getCollectionItemPath(config, page.collection, slug),
       format: getCollectionFormat(config, page.collection),
       schema: collection.schema,
       state: page.state,
       slug: { field: collection.slugField, value: slug },
+      extras,
     });
     return publishNowPlan({
       page,
-      ...draftChanges(config, changed, current, live),
-      saving: [...others, ...(extras?.files() ?? [])].map(f => f.path),
+      ...draftChanges({
+        collections: changed.collections,
+        current: current.entries,
+        base: live.entries,
+        dirs: Object.keys(config.collections ?? {}).map(c =>
+          getCollectionPath(config, c)
+        ),
+      }),
+      saving: others.map(f => f.path),
       pageText: new TextDecoder().decode(own.contents),
       isLive: path => live.entries.has(path),
     });
@@ -100,22 +115,21 @@ const pictureBadge = {
   removed: 'Deleted picture',
 };
 
-// The page editor's save button, with Publish now in its menu.
 export function SaveSplitButton(props: {
   formID: string;
-  label: string;
   isDisabled: boolean;
   onSave: () => void;
   onPublishNow: () => void;
-  config: Config;
   page: Page;
 }) {
+  const config = useConfig();
+  const label = useDraftSaveCopy()?.save ?? '';
   const language = useLanguageOf();
-  const planNow = usePlanPublishNow(props.config, props.page);
+  const planNow = usePlanPublishNow(props.page);
   const [plan, setPlan] = useState<PublishNowPlan | null>(null);
   const [confirming, setConfirming] = useState(false);
   const title = pageTitleFrom(
-    props.config.collections![props.page.collection],
+    config.collections![props.page.collection],
     props.page.state,
     props.page.slug
   );
@@ -138,9 +152,9 @@ export function SaveSplitButton(props: {
               else setConfirming(true);
             }}
           >
-            <Item key="save" textValue={props.label}>
+            <Item key="save" textValue={label}>
               <Icon src={gitBranchIcon} />
-              <Text>{props.label}</Text>
+              <Text>{label}</Text>
               <Text slot="description">
                 Preview it first, publish when you're happy.
               </Text>
@@ -157,7 +171,7 @@ export function SaveSplitButton(props: {
           </Menu>
         }
       >
-        {props.label}
+        {label}
       </SplitButton>
       <DialogContainer onDismiss={() => setConfirming(false)}>
         {confirming && plan && (
