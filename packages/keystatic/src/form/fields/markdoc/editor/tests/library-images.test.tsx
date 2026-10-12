@@ -1,18 +1,21 @@
 /** @vitest-environment jsdom */
 import { expect, test } from 'vitest';
 import { Node } from 'prosemirror-model';
-import { EditorView } from 'prosemirror-view';
 import { format, parse } from '#markdoc';
 import { markdocToProseMirror } from '../markdoc/parse';
 import { proseMirrorToMarkdoc } from '../markdoc/serialize';
 import { createEditorSchema } from '../schema';
 import { editorOptionsToConfig } from '../../config';
-import { chosenFileAttrs, libraryImageAttrs } from '../image-library';
+import { libraryImageAttrs } from '../image-library';
 
 const dir = 'src/assets/images/docs';
 const schema = createEditorSchema(
   editorOptionsToConfig({
-    image: { directory: dir, publicPath: '../../../assets/images/docs/' },
+    image: {
+      directory: dir,
+      publicPath: '../../../assets/images/docs/',
+      library: true,
+    },
   }),
   {},
   false
@@ -100,39 +103,6 @@ test('an inserted library picture stores a path, never the bytes', () => {
   );
 });
 
-test('without a library, a new file turns a reference into a page picture', () => {
-  const bytes = new Uint8Array([7]);
-  expect(
-    chosenFileAttrs(
-      schema.config,
-      { fromLibrary: true },
-      { name: 'new.png', bytes }
-    )
-  ).toEqual({ src: bytes, filename: 'new.png', fromLibrary: false });
-  expect(
-    chosenFileAttrs(
-      schema.config,
-      { fromLibrary: false },
-      {
-        name: 'new.png',
-        bytes,
-      }
-    )
-  ).toEqual({ src: bytes });
-  const node = schema.schema.nodes.image.create({
-    src: bytes,
-    filename: 'new.png',
-    fromLibrary: false,
-  });
-  const doc = schema.nodes.doc.create(
-    {},
-    schema.nodes.paragraph.create({}, node)
-  );
-  const { text, files } = save(doc, 'page');
-  expect([...files.keys()]).toEqual(['new.png']);
-  expect(text).toContain('../../../assets/images/docs/page/new.png');
-});
-
 test('a missing file in the page’s own folder stays as text', () => {
   const doc = load(
     '![Gone](../../../assets/images/docs/page/gone.png)',
@@ -144,54 +114,21 @@ test('a missing file in the page’s own folder stays as text', () => {
   );
 });
 
-test('without a library, a reference shows its path instead of a blank image', () => {
-  const doc = load(
-    '![Hero](../../../assets/images/docs/shared/hero.png)',
+test('without the library option, another folder’s picture stays as text', () => {
+  const plain = createEditorSchema(
+    editorOptionsToConfig({
+      image: { directory: dir, publicPath: '../../../assets/images/docs/' },
+    }),
+    {},
+    false
+  );
+  const src = '../../../assets/images/docs/shared/hero.png';
+  const doc = markdocToProseMirror(
+    parse(`![Hero](${src})`),
+    plain,
+    new Map(),
+    new Map(),
     'page'
   );
-  let image: Node | undefined;
-  doc.descendants(n => {
-    if (n.type.name === 'image') image = n;
-  });
-  const view = { props: {} } as unknown as EditorView;
-  const { dom } = schema.schema.nodes.image.spec.nodeView!(
-    image!,
-    view,
-    () => 0,
-    [],
-    {} as any
-  ) as { dom: HTMLElement };
-  expect(dom.tagName).toBe('SPAN');
-  expect(dom.textContent).toBe(
-    `Image from ${dir}/shared/hero.png (not editable here)`
-  );
-});
-
-test('a library pick from the page’s own folder is saved as the page’s file', () => {
-  const pick = (bytes: Uint8Array) =>
-    schema.nodes.doc.create(
-      {},
-      schema.nodes.paragraph.create(
-        {},
-        schema.schema.nodes.image.create(
-          libraryImageAttrs(schema.config, {
-            path: `${dir}/page/own.png`,
-            bytes,
-            alt: 'Own',
-            title: '',
-          })
-        )
-      )
-    );
-  const own = save(pick(new Uint8Array([1])), 'page');
-  expect([...own.files.keys()]).toEqual(['own.png']);
-  expect(own.text.trim()).toBe(
-    '![Own](../../../assets/images/docs/page/own.png)'
-  );
-  // From another page it stays a reference.
-  const other = save(pick(new Uint8Array([1])), 'other');
-  expect(other.files.size).toBe(0);
-  expect(other.text.trim()).toBe(
-    '![Own](../../../assets/images/docs/page/own.png)'
-  );
+  expect(doc.textContent).toBe(`![Hero](${src})`);
 });

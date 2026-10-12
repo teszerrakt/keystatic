@@ -22,13 +22,13 @@ import { TooltipTrigger, Tooltip } from '@keystar/ui/tooltip';
 import { getUploadedFileObject } from '../../../image/ui';
 import { EditorState, NodeSelection } from 'prosemirror-state';
 import { useEditorDispatchCommand, useEditorSchema } from '../editor-view';
+import { Node } from 'prosemirror-model';
 import {
-  chosenFileAttrs,
+  ImageLibrary,
   libraryImageAttrs,
   libraryImagePath,
   useImageLibrary,
 } from '../image-library';
-import { Node } from 'prosemirror-model';
 
 export function ImagePopover(props: {
   node: Node;
@@ -37,40 +37,12 @@ export function ImagePopover(props: {
 }) {
   let stringFormatter = useLocalizedStringFormatter(l10nMessages);
   const runCommand = useEditorDispatchCommand();
+  const [dialogOpen, setDialogOpen] = useState(false);
   const schema = useEditorSchema();
   const library = useImageLibrary(schema.config);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const { attrs } = props.node;
-  const setAttrs = (next: Record<string, unknown>) =>
-    runCommand((state, dispatch) => {
-      if (dispatch) {
-        const { tr } = state;
-        tr.setNodeMarkup(props.pos, undefined, { ...attrs, ...next });
-        const newState = state.apply(tr);
-        tr.setSelection(NodeSelection.create(newState.doc, props.pos));
-        dispatch(tr);
-      }
-      return true;
-    });
-  const changeImage = async () => {
-    if (library) {
-      const image = await library.pick({
-        current: attrs.fromLibrary
-          ? {
-              path: libraryImagePath(schema.config, attrs.filename),
-              alt: attrs.alt,
-              title: attrs.title,
-            }
-          : undefined,
-      });
-      if (image) setAttrs(libraryImageAttrs(schema.config, image));
-      return;
-    }
-    const file = await getUploadedFileObject('image/*');
-    if (!file) return;
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    setAttrs(chosenFileAttrs(schema.config, attrs, { name: file.name, bytes }));
-  };
+  if (library) {
+    return <LibraryImagePopover {...props} library={library} />;
+  }
   return (
     <>
       <Flex gap="regular" padding="regular">
@@ -82,10 +54,29 @@ export function ImagePopover(props: {
             <Tooltip>{stringFormatter.format('edit')}</Tooltip>
           </TooltipTrigger>
           <TooltipTrigger>
-            <ActionButton prominence="low" onPress={changeImage}>
+            <ActionButton
+              prominence="low"
+              onPress={async () => {
+                const file = await getUploadedFileObject('image/*');
+                if (!file) return;
+                const src = new Uint8Array(await file.arrayBuffer());
+                runCommand((state, dispatch) => {
+                  if (dispatch) {
+                    const { tr } = state;
+                    tr.setNodeAttribute(props.pos, 'src', src);
+                    const newState = state.apply(tr);
+                    tr.setSelection(
+                      NodeSelection.create(newState.doc, props.pos)
+                    );
+                    dispatch(tr);
+                  }
+                  return true;
+                });
+              }}
+            >
               <Icon src={fileUpIcon} />
             </ActionButton>
-            <Tooltip>{library ? 'Change image' : 'Choose file'}</Tooltip>
+            <Tooltip>Choose file</Tooltip>
           </TooltipTrigger>
         </Flex>
         <Divider orientation="vertical" />
@@ -108,12 +99,105 @@ export function ImagePopover(props: {
           <Tooltip tone="critical">Remove</Tooltip>
         </TooltipTrigger>
       </Flex>
+      <DialogContainer
+        onDismiss={() => {
+          setDialogOpen(false);
+        }}
+      >
+        {dialogOpen && (
+          <ImageDialog
+            alt={props.node.attrs.alt}
+            title={props.node.attrs.title}
+            filename={props.node.attrs.filename}
+            onSubmit={value => {
+              runCommand((state, dispatch) => {
+                if (dispatch) {
+                  const { tr } = state;
+                  tr.setNodeMarkup(props.pos, undefined, {
+                    ...props.node.attrs,
+                    ...value,
+                  });
+                  const newState = state.apply(tr);
+                  tr.setSelection(
+                    NodeSelection.create(newState.doc, props.pos)
+                  );
+                  dispatch(tr);
+                }
+                return true;
+              });
+              setDialogOpen(false);
+            }}
+          />
+        )}
+      </DialogContainer>
+    </>
+  );
+}
+
+// The Images embed: text buttons, and Change image opens the library.
+function LibraryImagePopover(props: {
+  node: Node;
+  pos: number;
+  library: ImageLibrary;
+}) {
+  const runCommand = useEditorDispatchCommand();
+  const schema = useEditorSchema();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { attrs } = props.node;
+  const setAttrs = (next: Record<string, unknown>) =>
+    runCommand((state, dispatch) => {
+      if (dispatch) {
+        const { tr } = state;
+        tr.setNodeMarkup(props.pos, undefined, { ...attrs, ...next });
+        const newState = state.apply(tr);
+        tr.setSelection(NodeSelection.create(newState.doc, props.pos));
+        dispatch(tr);
+      }
+      return true;
+    });
+  return (
+    <>
+      <Flex gap="xsmall" padding="small">
+        <ActionButton prominence="low" onPress={() => setDialogOpen(true)}>
+          Edit
+        </ActionButton>
+        <ActionButton
+          prominence="low"
+          onPress={async () => {
+            const image = await props.library.pick({
+              current: attrs.fromLibrary
+                ? {
+                    path: libraryImagePath(schema.config, attrs.filename),
+                    alt: attrs.alt,
+                    title: attrs.title,
+                  }
+                : undefined,
+            });
+            if (image) setAttrs(libraryImageAttrs(schema.config, image));
+          }}
+        >
+          Change image
+        </ActionButton>
+        <ActionButton
+          prominence="low"
+          onPress={() =>
+            runCommand((state, dispatch) => {
+              dispatch?.(
+                state.tr.delete(props.pos, props.pos + props.node.nodeSize)
+              );
+              return true;
+            })
+          }
+        >
+          Remove
+        </ActionButton>
+      </Flex>
       <DialogContainer onDismiss={() => setDialogOpen(false)}>
         {dialogOpen && (
           <ImageDialog
             alt={attrs.alt}
             title={attrs.title}
-            filename={attrs.fromLibrary ? undefined : attrs.filename}
+            filename={attrs.filename}
             onSubmit={value => {
               setAttrs(value);
               setDialogOpen(false);
@@ -128,9 +212,8 @@ export function ImagePopover(props: {
 function ImageDialog(props: {
   alt: string;
   title: string;
-  // Absent for a library picture: renaming it would break other pages.
-  filename?: string;
-  onSubmit: (value: { alt: string; filename?: string; title: string }) => void;
+  filename: string;
+  onSubmit: (value: { alt: string; filename: string; title: string }) => void;
 }) {
   const schema = useEditorSchema();
   const [state, setState] = useState({ alt: props.alt, title: props.title });
@@ -144,7 +227,7 @@ function ImageDialog(props: {
   )(state);
 
   const [filenameWithoutExtension, filenameExtension] = splitFilename(
-    props.filename ?? ''
+    props.filename
   );
   const [forceValidation, setForceValidation] = useState(false);
   let [fileName, setFileName] = useState(filenameWithoutExtension);
@@ -162,16 +245,14 @@ function ImageDialog(props: {
           event.preventDefault();
           setForceValidation(true);
           if (
-            (fileName || props.filename === undefined) &&
+            fileName &&
             clientSideValidateProp(imagesSchema, state, undefined)
           ) {
             dismiss();
             props.onSubmit({
               alt: state.alt,
               title: state.title,
-              ...(props.filename === undefined
-                ? {}
-                : { filename: [fileName, filenameExtension].join('.') }),
+              filename: [fileName, filenameExtension].join('.'),
             });
           }
         }}
@@ -179,31 +260,29 @@ function ImageDialog(props: {
         <Heading>Image details</Heading>
         <Content>
           <Flex gap="large" direction="column">
-            {props.filename !== undefined && (
-              <TextField
-                label="File name"
-                onChange={setFileName}
-                onBlur={() => setFileNameTouched(true)}
-                value={fileName}
-                isRequired
-                errorMessage={
-                  (fileNameTouched || forceValidation) && !fileName
-                    ? 'Please provide a file name.'
-                    : undefined
-                }
-                endElement={
-                  filenameExtension ? (
-                    <Flex
-                      alignItems="center"
-                      justifyContent="center"
-                      paddingEnd="regular"
-                    >
-                      <Text color="neutralTertiary">.{filenameExtension}</Text>
-                    </Flex>
-                  ) : null
-                }
-              />
-            )}
+            <TextField
+              label="File name"
+              onChange={setFileName}
+              onBlur={() => setFileNameTouched(true)}
+              value={fileName}
+              isRequired
+              errorMessage={
+                (fileNameTouched || forceValidation) && !fileName
+                  ? 'Please provide a file name.'
+                  : undefined
+              }
+              endElement={
+                filenameExtension ? (
+                  <Flex
+                    alignItems="center"
+                    justifyContent="center"
+                    paddingEnd="regular"
+                  >
+                    <Text color="neutralTertiary">.{filenameExtension}</Text>
+                  </Flex>
+                ) : null
+              }
+            />
             <FormValueContentFromPreviewProps
               forceValidation={forceValidation}
               autoFocus

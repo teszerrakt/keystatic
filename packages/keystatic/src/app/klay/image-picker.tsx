@@ -99,6 +99,13 @@ function LibraryProvider(props: {
   const taken = (p: string) =>
     !!current?.has(p) || staged.some(s => s.path === p);
 
+  // Only the Images page deletes pictures: a page that drops one, even from
+  // its own folder, may share it with other pages.
+  useEffect(() => {
+    extras.keep(path => path.startsWith(`${dir}/`));
+    return () => extras.keep(null);
+  }, [extras, dir]);
+
   useEffect(() => {
     if (!staged.length) return;
     extras.set('images', () =>
@@ -227,8 +234,8 @@ function ImagePicker(
   const loaded = library.kind === 'loaded' ? library : null;
 
   const images = useMemo(() => {
-    const inTree = (loaded?.images ?? []).filter(
-      i => i.draft !== 'removed' && i.path.startsWith(`${props.directory}/`)
+    const inTree = (loaded?.images ?? []).filter(i =>
+      i.path.startsWith(`${props.directory}/`)
     );
     const waiting: LibraryImage[] = staged
       .filter(s => !inTree.some(i => i.path === s.path))

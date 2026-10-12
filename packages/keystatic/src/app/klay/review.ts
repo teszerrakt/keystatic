@@ -186,10 +186,10 @@ export function linkTargets(text: string) {
   const targets = [
     ...text.matchAll(/\]\(\s*<?([^)\s>]+)/g),
     ...text.matchAll(/(?:href|src)="([^"]+)"/g),
-  ].map(m => m[1].split(/[?#]/)[0]);
-  return [...new Set(targets)].filter(
-    t => t && !/^[a-z][a-z0-9+.-]*:/i.test(t)
-  );
+  ].map(m => m[1]);
+  return [...new Set(targets)]
+    .map(raw => raw.split(/[?#]/)[0])
+    .filter(t => t && !/^[a-z][a-z0-9+.-]*:/i.test(t));
 }
 
 // Broken links warn and never block: the writer decides.

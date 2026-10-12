@@ -57,6 +57,7 @@ export type EditorConfig = {
     | {
         directory: string | undefined;
         publicPath: string | undefined;
+        library: boolean;
         transformFilename: (originalFilename: string) => string;
         schema: {
           alt: BasicStringFormField;
@@ -86,6 +87,8 @@ export type MarkdocEditorOptions = {
     | {
         directory?: string;
         publicPath?: string;
+        /** Klay fork: pages may embed pictures from other folders under `directory`. */
+        library?: boolean;
         transformFilename?: (originalFilename: string) => string;
         schema?: { alt?: BasicStringFormField; title?: BasicStringFormField };
       };
@@ -109,6 +112,8 @@ export type MDXEditorOptions = {
     | {
         directory?: string;
         publicPath?: string;
+        /** Klay fork: pages may embed pictures from other folders under `directory`. */
+        library?: boolean;
         transformFilename?: (originalFilename: string) => string;
         schema?: { alt?: BasicStringFormField; title?: BasicStringFormField };
       };
@@ -158,6 +163,7 @@ export function editorOptionsToConfig(options: EditorOptions): EditorConfig {
             return {
               directory: opts?.directory,
               publicPath: opts?.publicPath,
+              library: opts?.library ?? false,
               transformFilename: opts?.transformFilename ?? (x => x),
               schema: {
                 alt: opts?.schema?.alt ?? defaultAltField,
@@ -179,11 +185,12 @@ export function editorOptionsToConfig(options: EditorOptions): EditorConfig {
   };
 }
 
-// Klay's image library needs a public path: without one a src cannot name
-// another folder.
+// Klay's image library is opt-in, and needs a public path: without one a src
+// cannot name another folder.
 export function libraryConfig(config: EditorConfig) {
   const image = config.image;
-  return typeof image?.directory === 'string' &&
+  return image?.library &&
+    typeof image.directory === 'string' &&
     typeof image.publicPath === 'string'
     ? { directory: fixPath(image.directory), publicPath: image.publicPath }
     : undefined;

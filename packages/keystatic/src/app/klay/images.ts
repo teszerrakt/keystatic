@@ -38,13 +38,12 @@ export const stem = (name: string) => name.replace(/\.[^.]+$/, '');
 
 export const altKey = (dir: string, path: string) => path.slice(dir.length + 1);
 
-export type ImageDraftState = 'new' | 'replaced' | 'removed';
-
 export type LibraryImage = {
   path: string;
   name: string;
   sha: string;
-  draft: ImageDraftState | undefined;
+  // Added in this draft
+  draft: 'new' | undefined;
 };
 
 type Entry = { sha: string; type?: string };
@@ -61,37 +60,31 @@ export function imageChanges(
   return diffEntries(current, base).filter(c => isImageIn(dir, c.path));
 }
 
-// Every picture under `dir`. With `base`, also those this draft removes.
+// Every picture under `dir`; with `base`, those this draft adds are new.
 export function libraryImages(
   dir: string,
   current: Map<string, Entry>,
   base?: Map<string, Entry>
 ): LibraryImage[] {
-  const changes = new Map(
-    (base ? imageChanges(dir, current, base) : []).map(c => [c.path, c.kind])
+  const added = new Set(
+    (base ? imageChanges(dir, current, base) : [])
+      .filter(c => c.kind === 'added')
+      .map(c => c.path)
   );
-  const draft = {
-    added: 'new',
-    changed: 'replaced',
-    removed: 'removed',
-  } as const;
-  const image = (path: string, e: Entry): LibraryImage => {
-    const kind = changes.get(path);
-    return {
-      path,
-      name: baseName(path),
-      sha: e.sha,
-      draft: kind && draft[kind],
-    };
-  };
-  const out = [...current]
+  return [...current]
     .filter(([path, e]) => e.type !== 'tree' && isImageIn(dir, path))
-    .map(([path, e]) => image(path, e));
-  for (const [path, kind] of changes) {
-    if (kind === 'removed') out.push(image(path, base!.get(path)!));
-  }
-  const rank = (i: LibraryImage) => (i.draft === 'new' ? 0 : 1);
-  return out.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+    .map(
+      ([path, e]): LibraryImage => ({
+        path,
+        name: baseName(path),
+        sha: e.sha,
+        draft: added.has(path) ? 'new' : undefined,
+      })
+    )
+    .sort(
+      (a, b) =>
+        Number(!a.draft) - Number(!b.draft) || a.name.localeCompare(b.name)
+    );
 }
 
 export function formatSize(bytes: number) {
@@ -201,15 +194,9 @@ export function serializeAltTexts(alts: Record<string, string>) {
   return JSON.stringify(Object.fromEntries(entries), null, 2) + '\n';
 }
 
-// Characters a markdown link would trip over become dashes.
-export function safeName(name: string) {
-  return (
-    name
-      .replace(/[^\w.-]+/g, '-')
-      .replace(/-+(\.[^.]*)?$/, '$1')
-      .replace(/^-+/, '') || 'image'
-  );
-}
+// The stored src is encodeURI'd, which leaves `#` and `?`: in a file name
+// they would cut the src short.
+export const safeName = (name: string) => name.replace(/[#?]/g, '-');
 
 export type UploadPlan =
   | { status: 'refused'; message: string }

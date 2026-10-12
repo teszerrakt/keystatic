@@ -13,14 +13,18 @@ import { useLanguages } from './pages-data';
 
 export type ExtraFile = { path: string; contents: Uint8Array };
 
-// Files a page's fields add to the page's own save commit.
+// Files a page's fields add to the page's own save commit, and files the
+// save keeps although the page no longer lists them.
 export type CommitExtras = {
   set(key: string, files: (() => ExtraFile[]) | null): void;
   files(): ExtraFile[];
+  keep(test: ((path: string) => boolean) | null): void;
+  kept(path: string): boolean;
 };
 
-function createExtras(): CommitExtras {
+export function createExtras(): CommitExtras {
   const parts = new Map<string, () => ExtraFile[]>();
+  let keep: ((path: string) => boolean) | null = null;
   return {
     set(key, files) {
       if (files) parts.set(key, files);
@@ -28,6 +32,12 @@ function createExtras(): CommitExtras {
     },
     files() {
       return [...parts.values()].flatMap(f => f());
+    },
+    keep(test) {
+      keep = test;
+    },
+    kept(path) {
+      return !!keep?.(path);
     },
   };
 }

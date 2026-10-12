@@ -376,26 +376,6 @@ const nodeSpecs = {
     nodeView(node, view) {
       const { config } = getEditorSchema(node.type.schema);
       const library = viewImageLibrary(view);
-      const unloadable =
-        node.attrs.fromLibrary && !node.attrs.src.byteLength && !library;
-      if (unloadable) {
-        const dom = document.createElement('span');
-        dom.textContent = `Image from ${libraryImagePath(
-          config,
-          node.attrs.filename
-        )} (not editable here)`;
-        dom.dataset.filename = node.attrs.filename;
-        dom.classList.add(
-          css({
-            border: `${tokenSchema.size.border.regular} dashed ${tokenSchema.color.border.neutral}`,
-            borderRadius: tokenSchema.size.radius.regular,
-            color: tokenSchema.color.foreground.neutralSecondary,
-            display: 'inline-block',
-            padding: tokenSchema.size.space.regular,
-          })
-        );
-        return { dom };
-      }
       const dom = document.createElement('img');
       let url: string | undefined;
       let destroyed = false;

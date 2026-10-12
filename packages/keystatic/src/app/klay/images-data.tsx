@@ -191,16 +191,12 @@ export function useLibrary(): Library {
   }, [plan, texts, onLive, altText, config, head, repoInfo]);
 }
 
-// Removed pictures are read from the live site.
 export function useImageBytes(image: LibraryImage | undefined) {
   const config = useConfig();
   const repoInfo = useRepoInfo();
   const branches = useBranches();
   const branch = useCurrentBranch();
-  const commit =
-    branches.get(
-      image?.draft === 'removed' && repoInfo ? repoInfo.defaultBranch : branch
-    )?.commitSha ?? '';
+  const commit = branches.get(branch)?.commitSha ?? '';
   const [bytes, setBytes] = useState<{ sha: string; data: Uint8Array }>();
   const sha = image?.sha;
   const path = image?.path;

@@ -9,12 +9,7 @@ import { classNames, css, tokenSchema } from '@keystar/ui/style';
 import { Text } from '@keystar/ui/typography';
 
 import { useObjectURL } from '../../form/fields/image/ui';
-import {
-  contentType,
-  formatSize,
-  ImageDraftState,
-  LibraryImage,
-} from './images';
+import { contentType, formatSize, LibraryImage } from './images';
 import { useImageBytes } from './images-data';
 
 export const imageGrid = (min: number) =>
@@ -69,15 +64,6 @@ const tick = css({
   top: 6,
   width: 20,
 });
-
-export const draftChip: Record<
-  ImageDraftState,
-  { tone: 'accent' | 'caution' | 'critical'; label: string }
-> = {
-  new: { tone: 'accent', label: 'New picture' },
-  replaced: { tone: 'caution', label: 'Replaced' },
-  removed: { tone: 'critical', label: 'Will be removed' },
-};
 
 export type Dims = { width: number; height: number };
 export const dimsText = (d: Dims | undefined) =>
@@ -192,8 +178,8 @@ export function ImageCard(props: {
             {props.usage}
           </Text>
           {image.draft && !props.compact && (
-            <Badge tone={draftChip[image.draft].tone} marginStart="auto">
-              {draftChip[image.draft].label}
+            <Badge tone="accent" marginStart="auto">
+              New picture
             </Badge>
           )}
         </Flex>

@@ -181,7 +181,6 @@ function ImageDetails(props: {
   busy: boolean;
   onClose: () => void;
   onRemove: (bytes: Uint8Array) => void;
-  onRestore: (bytes: Uint8Array) => void;
   onReplace: (file: File) => void;
   onSaveAlt: (alt: string) => Promise<void>;
 }) {
@@ -191,7 +190,6 @@ function ImageDetails(props: {
   const [copied, setCopied] = useState(false);
   const [alt, setAlt] = useState<string | null>(null);
   const [savingAlt, setSavingAlt] = useState(false);
-  const removed = image.draft === 'removed';
   const altValue = alt ?? props.alt ?? '';
   return (
     <Flex
@@ -217,11 +215,6 @@ function ImageDetails(props: {
       <Box border="neutral" borderRadius="regular" padding="regular">
         <ImagePreview preview={preview} alt={props.alt} height={192} />
       </Box>
-      {removed && (
-        <Notice tone="caution">
-          It is removed in this draft. Readers still see it until you publish.
-        </Notice>
-      )}
       <Flex gap="regular" alignItems="end">
         <TextField
           label="Path"
@@ -273,43 +266,41 @@ function ImageDetails(props: {
           </div>
         ))}
       </Box>
-      {!removed && (
-        <Flex direction="column" gap="regular">
-          <TextArea
-            label="Default alt text"
-            description="Filled in when you add this image to a page. Each page can change it."
-            value={altValue}
-            onChange={setAlt}
-            isDisabled={props.alt === undefined}
-          />
-          {alt !== null && alt !== props.alt && (
-            <Flex gap="regular">
-              <Button
-                prominence="high"
-                isDisabled={savingAlt || props.busy || props.alt === undefined}
-                onPress={async () => {
-                  setSavingAlt(true);
-                  try {
-                    await props.onSaveAlt(alt);
-                    setAlt(null);
-                  } catch (e) {
-                    toastQueue.critical((e as Error).message, {
-                      timeout: 8000,
-                    });
-                  } finally {
-                    setSavingAlt(false);
-                  }
-                }}
-              >
-                {savingAlt ? 'Saving…' : 'Save alt text'}
-              </Button>
-              <Button isDisabled={savingAlt} onPress={() => setAlt(null)}>
-                Cancel
-              </Button>
-            </Flex>
-          )}
-        </Flex>
-      )}
+      <Flex direction="column" gap="regular">
+        <TextArea
+          label="Default alt text"
+          description="Filled in when you add this image to a page. Each page can change it."
+          value={altValue}
+          onChange={setAlt}
+          isDisabled={props.alt === undefined}
+        />
+        {alt !== null && alt !== props.alt && (
+          <Flex gap="regular">
+            <Button
+              prominence="high"
+              isDisabled={savingAlt || props.busy || props.alt === undefined}
+              onPress={async () => {
+                setSavingAlt(true);
+                try {
+                  await props.onSaveAlt(alt);
+                  setAlt(null);
+                } catch (e) {
+                  toastQueue.critical((e as Error).message, {
+                    timeout: 8000,
+                  });
+                } finally {
+                  setSavingAlt(false);
+                }
+              }}
+            >
+              {savingAlt ? 'Saving…' : 'Save alt text'}
+            </Button>
+            <Button isDisabled={savingAlt} onPress={() => setAlt(null)}>
+              Cancel
+            </Button>
+          </Flex>
+        )}
+      </Flex>
       <Flex direction="column" gap="medium">
         <Text weight="medium" color="neutralEmphasis">
           Used on
@@ -327,30 +318,19 @@ function ImageDetails(props: {
         )}
       </Flex>
       <Flex gap="regular" wrap marginTop="auto">
-        {removed ? (
-          <Button
-            isDisabled={!bytes || props.busy}
-            onPress={() => bytes && props.onRestore(bytes)}
-          >
-            Undo remove
-          </Button>
-        ) : (
-          <>
-            <FileTrigger
-              acceptedFileTypes={ACCEPTED}
-              onSelect={list => list?.[0] && props.onReplace(list[0])}
-            >
-              <Button isDisabled={props.busy}>Replace file…</Button>
-            </FileTrigger>
-            <Button
-              tone="critical"
-              isDisabled={!bytes || !props.pages || props.busy}
-              onPress={() => bytes && props.onRemove(bytes)}
-            >
-              Remove…
-            </Button>
-          </>
-        )}
+        <FileTrigger
+          acceptedFileTypes={ACCEPTED}
+          onSelect={list => list?.[0] && props.onReplace(list[0])}
+        >
+          <Button isDisabled={props.busy}>Replace file…</Button>
+        </FileTrigger>
+        <Button
+          tone="critical"
+          isDisabled={!bytes || !props.pages || props.busy}
+          onPress={() => bytes && props.onRemove(bytes)}
+        >
+          Remove…
+        </Button>
       </Flex>
     </Flex>
   );
@@ -383,12 +363,11 @@ export function ImagesPage() {
   const loaded = library.kind === 'loaded' ? library : null;
   const images = loaded?.images ?? [];
   const onLive = loaded?.onLive ?? true;
-  const present = images.filter(i => i.draft !== 'removed');
   const changed = images.filter(i => i.draft);
   const shown = onLive ? 'all' : view;
 
   const q = search.trim().toLowerCase();
-  const visible = (shown === 'changed' ? changed : present).filter(i => {
+  const visible = (shown === 'changed' ? changed : images).filter(i => {
     const n = loaded?.usersOf(i.path)?.length;
     if (usageFilter === 'used' && n === 0) return false;
     if (usageFilter === 'unused' && n) return false;
@@ -559,11 +538,7 @@ export function ImagesPage() {
           <Heading elementType="h1" size="large">
             Images
           </Heading>
-          {onLive ? (
-            <Text color="neutralSecondary">
-              {present.length === 1 ? '1 image' : `${present.length} images`}
-            </Text>
-          ) : (
+          {!onLive && (
             <ActionGroup
               aria-label="Which images"
               selectionMode="single"
@@ -574,7 +549,7 @@ export function ImagesPage() {
               }
               density="compact"
             >
-              <Item key="all">{`All ${present.length}`}</Item>
+              <Item key="all">{`All ${images.length}`}</Item>
               <Item key="changed">{`Changed in this draft ${changed.length}`}</Item>
             </ActionGroup>
           )}
@@ -681,7 +656,6 @@ export function ImagesPage() {
             busy={busy}
             onClose={() => setSelected(null)}
             onRemove={bytes => setRemoving({ image: selectedImage, bytes })}
-            onRestore={bytes => restore(selectedImage, bytes)}
             onReplace={file => replace(selectedImage, file)}
             onSaveAlt={alt => saveAlt(selectedImage, alt)}
           />

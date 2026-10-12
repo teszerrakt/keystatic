@@ -60,23 +60,9 @@ export function libraryImageNode(
   });
 }
 
-// A library picture picked from the page's own folder is saved as the
-// page's own file: the save deletes any folder file it does not write.
-export function pageImageFilename(node: Node, slug: string | undefined) {
-  const { fromLibrary, filename, src } = node.attrs;
-  if (!fromLibrary || slug === undefined || !src.byteLength) return;
-  return filename.startsWith(`${slug}/`)
-    ? filename.slice(slug.length + 1)
-    : undefined;
-}
-
 // The encoded src of a library picture node; undefined for any other image.
-export function librarySrc(
-  config: EditorConfig,
-  node: Node,
-  slug: string | undefined
-) {
-  if (!node.attrs.fromLibrary || pageImageFilename(node, slug)) return;
+export function librarySrc(config: EditorConfig, node: Node) {
+  if (!node.attrs.fromLibrary) return;
   return encodeURI(`${srcBase(config)}${node.attrs.filename}`);
 }
 
@@ -116,22 +102,6 @@ export async function newImageAttrs(
     src: new Uint8Array(await file.arrayBuffer()),
     filename: config.image!.transformFilename(file.name),
   };
-}
-
-// Without a library a new file goes to the page's folder, so a library
-// reference becomes a page picture; otherwise only the bytes change.
-export function chosenFileAttrs(
-  config: EditorConfig,
-  attrs: { fromLibrary?: boolean },
-  file: { name: string; bytes: Uint8Array }
-) {
-  return attrs.fromLibrary
-    ? {
-        src: file.bytes,
-        filename: config.image!.transformFilename(file.name),
-        fromLibrary: false,
-      }
-    : { src: file.bytes };
 }
 
 export function libraryImageAttrs(config: EditorConfig, image: PickedImage) {

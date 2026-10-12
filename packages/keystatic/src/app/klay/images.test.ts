@@ -17,7 +17,7 @@ import {
 
 const dir = 'src/assets/images/docs';
 
-test('the library lists pictures under the directory, with draft states', () => {
+test('the library lists pictures under the directory; added ones are new', () => {
   const current = new Map([
     [`${dir}/shared`, { sha: 't', type: 'tree' }],
     [`${dir}/shared/new.png`, { sha: '1' }],
@@ -34,9 +34,8 @@ test('the library lists pictures under the directory, with draft states', () => 
   expect(libraryImages(dir, current, base).map(i => [i.path, i.draft])).toEqual(
     [
       [`${dir}/shared/new.png`, 'new'],
-      [`${dir}/create-a-bill/1.webp`, 'replaced'],
+      [`${dir}/create-a-bill/1.webp`, undefined],
       [`${dir}/create-a-bill/2.webp`, undefined],
-      [`${dir}/old.jpg`, 'removed'],
     ]
   );
   expect(libraryImages(dir, current).every(i => !i.draft)).toBe(true);
@@ -72,12 +71,12 @@ test('sizes, usage and clash copy', () => {
   );
 });
 
-test('a taken name gets a number; odd characters become dashes', () => {
+test('a taken name gets a number; # and ? become dashes', () => {
   const taken = new Set(['a/photo.jpg', 'a/photo-2.jpg']);
   expect(freePath('a/photo.jpg', p => taken.has(p))).toBe('a/photo-3.jpg');
   expect(freePath('a/new.jpg', p => taken.has(p))).toBe('a/new.jpg');
-  expect(safeName('My Photo (1).JPG')).toBe('My-Photo-1.JPG');
-  expect(safeName('IMG_2042.jpg')).toBe('IMG_2042.jpg');
+  expect(safeName('My Photo (1).JPG')).toBe('My Photo (1).JPG');
+  expect(safeName('team#2?.png')).toBe('team-2-.png');
 });
 
 test('uploads go to shared/; a clash waits; two new files keep both', () => {

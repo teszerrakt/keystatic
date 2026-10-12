@@ -1,8 +1,8 @@
 import { EditorView } from 'prosemirror-view';
-import { EditorState } from 'prosemirror-state';
+import { EditorState, NodeSelection } from 'prosemirror-state';
 import { Ref, forwardRef, useId, useMemo, useState } from 'react';
 import { Box } from '@keystar/ui/layout';
-import { useProseStyleProps } from '@keystar/ui/typography';
+import { Text, useProseStyleProps } from '@keystar/ui/typography';
 import {
   breakpointQueries,
   css,
@@ -13,7 +13,13 @@ import {
 import { Toolbar } from './Toolbar';
 import { prosemirrorStyles } from './utils';
 import { EditorPopoverDecoration } from './popovers';
-import { ProseMirrorEditable, ProseMirrorEditor } from './editor-view';
+import {
+  ProseMirrorEditable,
+  ProseMirrorEditor,
+  useEditorSchema,
+  useEditorState,
+} from './editor-view';
+import { useImageLibrary } from './image-library';
 import { AutocompleteDecoration } from './autocomplete/decoration';
 import { NodeViews } from './react-node-views';
 import { CellMenuPortal } from './popovers/table';
@@ -58,6 +64,35 @@ const contentStyles = css({
     },
   },
 });
+
+// The Images embed: removing a library picture leaves the file alone.
+function LibraryImageHint() {
+  const state = useEditorState();
+  const library = useImageLibrary(useEditorSchema().config);
+  const { selection } = state;
+  if (
+    !library ||
+    !(selection instanceof NodeSelection) ||
+    selection.node.type !== state.schema.nodes.image
+  ) {
+    return null;
+  }
+  return (
+    <Text
+      size="small"
+      color="neutralSecondary"
+      UNSAFE_className={css({
+        display: 'block',
+        marginInline: 'auto',
+        maxWidth: 800,
+        padding: tokenSchema.size.space.medium,
+      })}
+    >
+      Remove takes the image off this page only. It stays in Images for other
+      pages.
+    </Text>
+  );
+}
 
 export const Editor = forwardRef(function Editor(
   {
@@ -128,6 +163,7 @@ export const Editor = forwardRef(function Editor(
               id={getContentId(id)}
               data-keystatic-editor="content"
             />
+            <LibraryImageHint />
           </div>
         </Box>
         <NodeViews state={value} />
