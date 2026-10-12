@@ -66,7 +66,7 @@ test('change summaries read as a sentence', () => {
     title,
   });
   expect(changeSummary(one)).toBe('1 page');
-  expect(changeSummary([])).toBe('nothing');
+  expect(changeSummary([])).toBeNull();
 });
 
 test('titles come from the front matter', () => {

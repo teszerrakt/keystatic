@@ -17,7 +17,7 @@ import { Notice } from '@keystar/ui/notice';
 import { ProgressCircle } from '@keystar/ui/progress';
 import { Heading, Text } from '@keystar/ui/typography';
 
-import { useDraftSaveCopy } from './drafts';
+import { useDraftSaveCopy, useNewDraftName } from './drafts';
 import { useCommitToDraft } from './draft-commit';
 import {
   MenuSection,
@@ -38,6 +38,7 @@ export function MenuSectionsPage() {
   const [main, ...others] = languages;
   const copy = useDraftSaveCopy();
   const commit = useCommitToDraft();
+  const newDraftName = useNewDraftName();
   const [edited, setEdited] = useState<MenuSection[] | null>(null);
   const [adding, setAdding] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -109,8 +110,8 @@ export function MenuSectionsPage() {
     setError(null);
     try {
       await commit({
-        draftName: 'menu-sections',
-        headline: `Update ${setup.path}`,
+        newDraft: newDraftName('menu-sections'),
+        message: { headline: `Update ${setup.path}` },
         additions: [
           {
             path: setup.path,

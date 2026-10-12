@@ -146,7 +146,7 @@ export function changeSummary(groups: Group[]) {
   ]
     .filter(([n]) => n)
     .map(([n, word]) => plural(n as number, word as string));
-  if (parts.length <= 1) return parts[0] ?? 'nothing';
+  if (parts.length <= 1) return parts[0] ?? null;
   return `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}`;
 }
 
