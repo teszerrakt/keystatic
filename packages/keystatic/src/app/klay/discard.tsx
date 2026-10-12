@@ -5,6 +5,7 @@ import { css, tokenSchema } from '@keystar/ui/style';
 import { toastQueue } from '@keystar/ui/toast';
 import { Text } from '@keystar/ui/typography';
 
+import { useCurrentBranch } from '../shell/data';
 import { useDraftsContext } from './draft-data';
 import { Draft } from './draft-status';
 import { changeSummary } from './review';
@@ -14,10 +15,11 @@ const bigButtons = css({
   '& button': { height: 44, paddingInline: tokenSchema.size.space.xlarge },
 });
 
-// Only the open draft: its changes are the ones the shell has loaded.
+// The change summary needs the open draft's files; other drafts get a plain line.
 export function DiscardDialog(props: { draft: Draft }) {
   const drafts = useDraftsContext()!;
   const review = useDraftReview();
+  const isOpen = useCurrentBranch() === props.draft.name;
   const title = drafts.title(props.draft.name);
   return (
     <AlertDialog
@@ -37,12 +39,18 @@ export function DiscardDialog(props: { draft: Draft }) {
         <Text>
           Your changes to{' '}
           <strong>
-            {review.kind === 'loaded'
+            {isOpen && review.kind === 'loaded'
               ? changeSummary(review.groups)
               : 'this draft'}
           </strong>{' '}
           are thrown away.{' '}
-          <TextLink href={drafts.reviewHref}>See the changes</TextLink>
+          <TextLink
+            href={`/keystatic/branch/${encodeURIComponent(
+              props.draft.name
+            )}/publish`}
+          >
+            See the changes
+          </TextLink>
         </Text>
         <Text>The live site doesn't change. You can't undo this.</Text>
       </Flex>

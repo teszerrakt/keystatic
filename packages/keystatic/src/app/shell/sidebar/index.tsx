@@ -40,6 +40,7 @@ import { useBrand } from '../common';
 import { SIDE_PANEL_ID } from '../constants';
 import { GitMenu, ThemeMenu, UserActions } from './components';
 import { BranchPicker } from '../../branch-selection';
+import { DraftNav } from '../../klay/draft-nav';
 import { DraftSwitcher } from '../../klay/draft-switcher';
 import { isDraftsOnly } from '../../klay/drafts';
 import { useAppState, useConfig } from '../context';
@@ -79,12 +80,16 @@ export function SidebarProvider(props: { children: ReactNode }) {
   );
 }
 
+function Nav() {
+  return isDraftsOnly(useConfig()) ? <DraftNav /> : <SidebarNav />;
+}
+
 export function SidebarPanel() {
   return (
     <VStack backgroundColor="surface" height="100%">
       <SidebarHeader />
       <SidebarGitActions />
-      <SidebarNav />
+      <Nav />
       <SidebarFooter />
     </VStack>
   );
@@ -232,7 +237,7 @@ export function SidebarDialog() {
       >
         <SidebarHeader />
         <SidebarGitActions />
-        <SidebarNav />
+        <Nav />
         <SidebarFooter />
         <DismissButton onDismiss={state.close} />
       </div>
