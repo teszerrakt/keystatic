@@ -40,6 +40,8 @@ import { useBrand } from '../common';
 import { SIDE_PANEL_ID } from '../constants';
 import { GitMenu, ThemeMenu, UserActions } from './components';
 import { BranchPicker } from '../../branch-selection';
+import { DraftSwitcher } from '../../plus/draft-switcher';
+import { isDraftsOnly } from '../../plus/drafts';
 import { useAppState, useConfig } from '../context';
 
 const SidebarContext = createContext<OverlayTriggerState | null>(null);
@@ -150,6 +152,9 @@ function SidebarGitActions() {
   let config = useConfig();
   if (isLocalConfig(config)) {
     return null;
+  }
+  if (isDraftsOnly(config)) {
+    return <DraftSwitcher />;
   }
   return (
     <HStack gap="regular" paddingY="regular" paddingX="medium">

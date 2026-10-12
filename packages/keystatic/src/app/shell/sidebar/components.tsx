@@ -59,6 +59,7 @@ import { useImageLibraryURL } from '../../../component-blocks/cloud-image-previe
 import { clearObjectCache } from '../../object-cache';
 import { clearDrafts } from '../../persistence';
 import { getCloudAuth } from '../../auth';
+import { authPlugin } from '../../plus/auth';
 
 type MenuItem = {
   icon: ReactElement;
@@ -169,7 +170,7 @@ export function UserMenu(user: {
         label: 'Log out',
         href:
           config.storage.kind === 'github'
-            ? '/api/keystatic/github/logout'
+            ? authPlugin(config.storage).logoutUrl
             : undefined,
         icon: logOutIcon,
       },

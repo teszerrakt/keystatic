@@ -106,6 +106,9 @@ export function serializeEntryToFiles(args: {
   ];
 }
 
+export const draftsOnlyReason =
+  'The live site is never edited directly. This change is saved as a draft.';
+
 export function useUpsertItem(args: {
   state: unknown;
   initialFiles: string[] | undefined;
@@ -205,6 +208,14 @@ export function useUpsertItem(args: {
         ) {
           if (!repoInfo) {
             throw new Error('Repo info not loaded');
+          }
+          if (
+            !override &&
+            args.config.storage.draftsOnly &&
+            currentBranch === repoInfo.defaultBranch
+          ) {
+            setState({ kind: 'needs-new-branch', reason: draftsOnlyReason });
+            return false;
           }
           const branch = {
             branchName: override?.branch ?? currentBranch,

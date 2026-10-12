@@ -8,6 +8,8 @@ import { ReactNode, useRef } from 'react';
 
 import { ContentPanelProvider, useContentPanelState } from './context';
 import { SidebarDialog, SidebarPanel, useSidebar } from './sidebar';
+import { DraftsProvider } from '../plus/draft-data';
+import { WithDraftBar } from '../plus/draft-bar';
 
 // Main panel layout
 // -----------------------------------------------------------------------------
@@ -20,25 +22,29 @@ export const MainPanelLayout = (props: { children: ReactNode }) => {
 
   return (
     <ContentPanelProvider value={context}>
-      <SplitView
-        autoSaveId="keystatic-app-split-view"
-        isCollapsed={isBelowDesktop || !sidebarState.isOpen}
-        onCollapseChange={sidebarState.toggle}
-        defaultSize={260}
-        minSize={180}
-        maxSize={400}
-        // styles
-        height="100vh"
-      >
-        {isBelowDesktop ? (
-          <SidebarDialog />
-        ) : (
-          <SplitPanePrimary>
-            <SidebarPanel />
-          </SplitPanePrimary>
-        )}
-        <SplitPaneSecondary ref={ref}>{props.children}</SplitPaneSecondary>
-      </SplitView>
+      <DraftsProvider>
+        <SplitView
+          autoSaveId="keystatic-app-split-view"
+          isCollapsed={isBelowDesktop || !sidebarState.isOpen}
+          onCollapseChange={sidebarState.toggle}
+          defaultSize={260}
+          minSize={180}
+          maxSize={400}
+          // styles
+          height="100vh"
+        >
+          {isBelowDesktop ? (
+            <SidebarDialog />
+          ) : (
+            <SplitPanePrimary>
+              <SidebarPanel />
+            </SplitPanePrimary>
+          )}
+          <SplitPaneSecondary ref={ref}>
+            <WithDraftBar>{props.children}</WithDraftBar>
+          </SplitPaneSecondary>
+        </SplitView>
+      </DraftsProvider>
     </ContentPanelProvider>
   );
 };

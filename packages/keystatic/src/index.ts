@@ -17,3 +17,5 @@ export type {
   LocalConfig,
   Singleton,
 } from './config';
+export { githubAuth } from './app/plus/auth';
+export type { AuthPlugin } from './app/plus/auth';

@@ -4,6 +4,7 @@ import { ReactElement } from 'react';
 import { ComponentSchema, FormField, SlugFormField } from './form/api';
 import type { Locale } from './app/l10n/locales';
 import { RepoConfig } from './app/repo-config';
+import type { AuthPlugin } from './app/plus/auth';
 
 // Common
 // ----------------------------------------------------------------------------
@@ -51,6 +52,14 @@ type CommonConfig<Collections, Singletons> = {
 type CommonRemoteStorageConfig = {
   pathPrefix?: string;
   branchPrefix?: string;
+  /** Plus fork: saves on the default branch go to a new `branchPrefix` branch, and the picker hides the default branch. */
+  draftsOnly?: boolean;
+  /** Plus fork: a draft's preview site. `{alias}` becomes the branch as the host names its preview (`draft/a` → `draft-a`). */
+  draftPreviewUrl?: string;
+  /** Plus fork: the live site, e.g. `https://docs.example.com`. Links a published page. */
+  siteUrl?: string;
+  /** Plus fork: where a publish is announced, e.g. `#docs-updates`. Shown after publishing. */
+  announceChannel?: string;
 };
 
 // Interface
@@ -80,6 +89,8 @@ type Navigation<K> = K[] | { [section: string]: K[] };
 type GitHubStorageConfig = {
   kind: 'github';
   repo: RepoConfig;
+  /** Plus fork: sign-in plug-in. Defaults to `githubAuth()`. */
+  auth?: AuthPlugin;
 } & CommonRemoteStorageConfig;
 
 export type GitHubConfig<

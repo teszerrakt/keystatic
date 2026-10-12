@@ -52,6 +52,13 @@ import {
 } from './branch-selection';
 import { FormForEntry, containerWidthForEntryLayout } from './entry-form';
 import { ForkRepoDialog } from './fork-repo';
+import {
+  AutoDraftBranchDialog,
+  BranchDialogContainer,
+  isDraftsOnly,
+  useDraftSaveCopy,
+} from './plus/drafts';
+import { fillPreviewUrl } from './plus/draft-data';
 import l10nMessages from './l10n';
 import { NotFoundBoundary, notFound } from './not-found';
 import { getDataFileExtension, getPathPrefix } from './path-utils';
@@ -142,9 +149,7 @@ function ItemPageInner(
   const repoInfo = useRepoInfo();
   const [forceValidation, setForceValidation] = useState(false);
   const previewHref = collectionConfig.previewUrl
-    ? collectionConfig.previewUrl
-        .replace('{slug}', props.itemSlug)
-        .replace('{branch}', currentBranch)
+    ? fillPreviewUrl(collectionConfig.previewUrl, currentBranch, props.itemSlug)
     : undefined;
   const { push, replace } = router;
 
@@ -289,7 +294,7 @@ function ItemPageInner(
             slugField={slugInfo}
           />
         </Box>
-        <DialogContainer
+        <BranchDialogContainer
           // ideally this would be a popover on desktop but using a DialogTrigger wouldn't work since
           // this doesn't open on click but after doing a network request and it failing and manually wiring about a popover and modal would be a pain
           onDismiss={props.onResetUpdateItem}
@@ -313,10 +318,11 @@ function ItemPageInner(
                 }
               }}
               reason={updateResult.reason}
+              suggestedName={itemSlug}
               onDismiss={props.onResetUpdateItem}
             />
           )}
-        </DialogContainer>
+        </BranchDialogContainer>
         <DialogContainer
           // ideally this would be a popover on desktop but using a DialogTrigger
           // wouldn't work since this doesn't open on click but after doing a
@@ -567,6 +573,7 @@ function HeaderActions(props: {
   } = props;
   const isBelowDesktop = useMediaQuery(breakpointQueries.below.desktop);
   const stringFormatter = useLocalizedStringFormatter(l10nMessages);
+  const draftCopy = useDraftSaveCopy();
   const [deleteAlertIsOpen, setDeleteAlertOpen] = useState(false);
   const [duplicateAlertIsOpen, setDuplicateAlertOpen] = useState(false);
   const menuActions = useMemo(() => {
@@ -653,11 +660,13 @@ function HeaderActions(props: {
           <Text visuallyHidden>Unsaved</Text>
         </Box>
       ) : (
-        <Badge tone="pending">Unsaved</Badge>
+        <Badge tone="pending">{draftCopy?.unsaved ?? 'Unsaved'}</Badge>
       );
     }
 
-    return null;
+    return draftCopy?.saved && !isBelowDesktop ? (
+      <Text color="neutralSecondary">{draftCopy.saved}</Text>
+    ) : null;
   })();
 
   return (
@@ -711,11 +720,11 @@ function HeaderActions(props: {
       </ActionGroup>
       <Button
         form={formID}
-        isDisabled={isLoading}
+        isDisabled={isLoading || (!!draftCopy && !hasChanged)}
         prominence="high"
         type="submit"
       >
-        {stringFormatter.format('save')}
+        {draftCopy?.save ?? stringFormatter.format('save')}
       </Button>
       <DialogContainer onDismiss={() => setDeleteAlertOpen(false)}>
         {deleteAlertIsOpen && (
@@ -749,12 +758,27 @@ function HeaderActions(props: {
   );
 }
 
-export function CreateBranchDuringUpdateDialog(props: {
+type CreateBranchDuringUpdateDialogProps = {
   branchOid: string;
   onCreate: (branchName: string) => void;
   onDismiss: () => void;
   reason: string;
-}) {
+  suggestedName?: string;
+};
+
+export function CreateBranchDuringUpdateDialog(
+  props: CreateBranchDuringUpdateDialogProps
+) {
+  return isDraftsOnly(useConfig()) ? (
+    <AutoDraftBranchDialog {...props} />
+  ) : (
+    <NameBranchDuringUpdateDialog {...props} />
+  );
+}
+
+function NameBranchDuringUpdateDialog(
+  props: CreateBranchDuringUpdateDialogProps
+) {
   const stringFormatter = useLocalizedStringFormatter(l10nMessages);
   const repoInfo = useRepoInfo();
   const [branchName, setBranchName] = useState('');
