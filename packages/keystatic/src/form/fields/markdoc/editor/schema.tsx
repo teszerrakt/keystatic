@@ -36,11 +36,10 @@ import { getCustomMarkSpecs, getCustomNodeSpecs } from './custom-components';
 import { EditorConfig } from '../config';
 import { toSerialized } from './props-serialization';
 import { getInitialPropsValue } from '../../../initial-values';
-import { getUploadedFileObject } from '../../image/ui';
 import { base64UrlEncode, base64UrlDecode } from '#base64';
 import {
+  chooseImageAttrs,
   libraryImagePath,
-  newImageAttrs,
   viewImageLibrary,
 } from './image-library';
 
@@ -359,10 +358,9 @@ const nodeSpecs = {
         return (state, dispatch, view) => {
           if (dispatch && view) {
             (async () => {
-              const file = await getUploadedFileObject('image/*');
               const schema = getEditorSchema(nodeType.schema);
-              if (!file || !schema.config.image) return;
-              const attrs = await newImageAttrs(file, schema.config, view);
+              if (!schema.config.image) return;
+              const attrs = await chooseImageAttrs(schema.config, view);
               if (!attrs) return;
               view.dispatch(
                 view.state.tr.replaceSelectionWith(

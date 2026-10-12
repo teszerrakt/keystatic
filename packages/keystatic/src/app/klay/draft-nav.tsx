@@ -7,7 +7,7 @@ import { useRouter } from '../router';
 import { useAppState } from '../shell/context';
 import { useChanged, useTree } from '../shell/data';
 import { useDraftsContext } from './draft-data';
-import { libraryImages } from './images';
+import { imageChanges } from './images';
 import { useImageDirectory } from './images-data';
 import { useMenuSections } from './menu-sections-data';
 import { useLanguages } from './pages-data';
@@ -33,11 +33,11 @@ export function DraftNav() {
   }
   const imagesChanged =
     drafts && !drafts.onLive && imageDir && trees.merged.kind === 'loaded'
-      ? libraryImages(
+      ? imageChanges(
           imageDir,
           trees.merged.data.current.entries,
           trees.merged.data.default.entries
-        ).filter(i => i.draft).length
+        ).length
       : 0;
   const path = router.pathname;
   const onPages =

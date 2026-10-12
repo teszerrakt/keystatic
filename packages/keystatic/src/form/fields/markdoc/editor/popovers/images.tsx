@@ -39,82 +39,35 @@ export function ImagePopover(props: {
   const schema = useEditorSchema();
   const library = useImageLibrary(schema.config);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [picking, setPicking] = useState(false);
-  const setAttrs = (attrs: Record<string, unknown>) =>
+  const { attrs } = props.node;
+  const setAttrs = (next: Record<string, unknown>) =>
     runCommand((state, dispatch) => {
       if (dispatch) {
         const { tr } = state;
-        tr.setNodeMarkup(props.pos, undefined, {
-          ...props.node.attrs,
-          ...attrs,
-        });
+        tr.setNodeMarkup(props.pos, undefined, { ...attrs, ...next });
         const newState = state.apply(tr);
         tr.setSelection(NodeSelection.create(newState.doc, props.pos));
         dispatch(tr);
       }
       return true;
     });
-  const remove = () =>
-    runCommand((state, dispatch) => {
-      if (dispatch) {
-        dispatch(state.tr.delete(props.pos, props.pos + props.node.nodeSize));
-      }
-      return true;
-    });
-  if (library) {
-    const { attrs } = props.node;
-    return (
-      <>
-        <Flex gap="xsmall" padding="small">
-          <ActionButton prominence="low" onPress={() => setDialogOpen(true)}>
-            {stringFormatter.format('edit')}
-          </ActionButton>
-          <ActionButton prominence="low" onPress={() => setPicking(true)}>
-            Change image
-          </ActionButton>
-          <TooltipTrigger>
-            <ActionButton prominence="low" onPress={remove}>
-              Remove
-            </ActionButton>
-            <Tooltip>Takes it off this page only.</Tooltip>
-          </TooltipTrigger>
-        </Flex>
-        <DialogContainer onDismiss={() => setPicking(false)}>
-          {picking && (
-            <library.library.Picker
-              directory={library.directory}
-              current={
-                attrs.fromLibrary
-                  ? {
-                      path: libraryImagePath(schema.config, attrs.filename),
-                      alt: attrs.alt,
-                      title: attrs.title,
-                    }
-                  : undefined
-              }
-              onPick={image => {
-                setPicking(false);
-                setAttrs(libraryImageAttrs(schema.config, image));
-              }}
-            />
-          )}
-        </DialogContainer>
-        <DialogContainer onDismiss={() => setDialogOpen(false)}>
-          {dialogOpen && (
-            <ImageDialog
-              alt={attrs.alt}
-              title={attrs.title}
-              filename={attrs.fromLibrary ? undefined : attrs.filename}
-              onSubmit={value => {
-                setAttrs(value);
-                setDialogOpen(false);
-              }}
-            />
-          )}
-        </DialogContainer>
-      </>
-    );
-  }
+  const changeImage = async () => {
+    if (library) {
+      const image = await library.pick({
+        current: attrs.fromLibrary
+          ? {
+              path: libraryImagePath(schema.config, attrs.filename),
+              alt: attrs.alt,
+              title: attrs.title,
+            }
+          : undefined,
+      });
+      if (image) setAttrs(libraryImageAttrs(schema.config, image));
+      return;
+    }
+    const file = await getUploadedFileObject('image/*');
+    if (file) setAttrs({ src: new Uint8Array(await file.arrayBuffer()) });
+  };
   return (
     <>
       <Flex gap="regular" padding="regular">
@@ -126,29 +79,10 @@ export function ImagePopover(props: {
             <Tooltip>{stringFormatter.format('edit')}</Tooltip>
           </TooltipTrigger>
           <TooltipTrigger>
-            <ActionButton
-              prominence="low"
-              onPress={async () => {
-                const file = await getUploadedFileObject('image/*');
-                if (!file) return;
-                const src = new Uint8Array(await file.arrayBuffer());
-                runCommand((state, dispatch) => {
-                  if (dispatch) {
-                    const { tr } = state;
-                    tr.setNodeAttribute(props.pos, 'src', src);
-                    const newState = state.apply(tr);
-                    tr.setSelection(
-                      NodeSelection.create(newState.doc, props.pos)
-                    );
-                    dispatch(tr);
-                  }
-                  return true;
-                });
-              }}
-            >
+            <ActionButton prominence="low" onPress={changeImage}>
               <Icon src={fileUpIcon} />
             </ActionButton>
-            <Tooltip>Choose file</Tooltip>
+            <Tooltip>{library ? 'Change image' : 'Choose file'}</Tooltip>
           </TooltipTrigger>
         </Flex>
         <Divider orientation="vertical" />
@@ -171,32 +105,14 @@ export function ImagePopover(props: {
           <Tooltip tone="critical">Remove</Tooltip>
         </TooltipTrigger>
       </Flex>
-      <DialogContainer
-        onDismiss={() => {
-          setDialogOpen(false);
-        }}
-      >
+      <DialogContainer onDismiss={() => setDialogOpen(false)}>
         {dialogOpen && (
           <ImageDialog
-            alt={props.node.attrs.alt}
-            title={props.node.attrs.title}
-            filename={props.node.attrs.filename}
+            alt={attrs.alt}
+            title={attrs.title}
+            filename={attrs.fromLibrary ? undefined : attrs.filename}
             onSubmit={value => {
-              runCommand((state, dispatch) => {
-                if (dispatch) {
-                  const { tr } = state;
-                  tr.setNodeMarkup(props.pos, undefined, {
-                    ...props.node.attrs,
-                    ...value,
-                  });
-                  const newState = state.apply(tr);
-                  tr.setSelection(
-                    NodeSelection.create(newState.doc, props.pos)
-                  );
-                  dispatch(tr);
-                }
-                return true;
-              });
+              setAttrs(value);
               setDialogOpen(false);
             }}
           />

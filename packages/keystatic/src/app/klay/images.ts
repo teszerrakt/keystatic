@@ -1,4 +1,4 @@
-import { linkTargets, PICTURE, resolveFile } from './review';
+import { diffEntries, linkTargets, PICTURE, resolveFile } from './review';
 
 // New uploads land here, under the image directory; per-page folders stay
 // with their pages (D1).
@@ -7,15 +7,21 @@ export const MAX_BYTES = 5 * 1024 * 1024;
 // Default alt text, keyed by path under the image directory (D3).
 export const ALT_FILE = 'alt-text.json';
 
-const TYPES: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  svg: 'image/svg+xml',
-};
+const FORMATS = [
+  { label: 'JPG', mime: 'image/jpeg', exts: ['jpg', 'jpeg'] },
+  { label: 'PNG', mime: 'image/png', exts: ['png'] },
+  { label: 'WebP', mime: 'image/webp', exts: ['webp'] },
+  { label: 'SVG', mime: 'image/svg+xml', exts: ['svg'] },
+];
+const TYPES: Record<string, string> = Object.fromEntries(
+  FORMATS.flatMap(f => f.exts.map(ext => [ext, f.mime]))
+);
 
-export const ACCEPTED = 'image/jpeg,image/png,image/webp,image/svg+xml';
+// For file choosers, so the system dialog offers only what uploads accept.
+export const ACCEPTED = FORMATS.map(f => f.mime);
+export const UPLOAD_HINT = `${FORMATS.map(f => f.label).join(', ')} · up to ${
+  MAX_BYTES / 1024 / 1024
+} MB`;
 
 export function extension(name: string) {
   const dot = name.lastIndexOf('.');
@@ -28,17 +34,32 @@ export function baseName(path: string) {
   return path.slice(path.lastIndexOf('/') + 1);
 }
 
+export const stem = (name: string) => name.replace(/\.[^.]+$/, '');
+
+export const altKey = (dir: string, path: string) => path.slice(dir.length + 1);
+
 export type ImageDraftState = 'new' | 'replaced' | 'removed';
 
 export type LibraryImage = {
   path: string;
   name: string;
   sha: string;
-  // Removed images come from the live site, so the bytes are read there.
   draft: ImageDraftState | undefined;
 };
 
 type Entry = { sha: string; type?: string };
+
+const isImageIn = (dir: string, path: string) =>
+  path.startsWith(`${dir}/`) && PICTURE.test(path);
+
+// Pictures under `dir` that a draft adds, replaces or removes.
+export function imageChanges(
+  dir: string,
+  current: Map<string, Entry>,
+  base: Map<string, Entry>
+) {
+  return diffEntries(current, base).filter(c => isImageIn(dir, c.path));
+}
 
 // Every picture under `dir`. With `base`, also those this draft removes.
 export function libraryImages(
@@ -46,29 +67,28 @@ export function libraryImages(
   current: Map<string, Entry>,
   base?: Map<string, Entry>
 ): LibraryImage[] {
-  const under = (path: string, e: Entry) =>
-    e.type !== 'tree' && path.startsWith(`${dir}/`) && PICTURE.test(path);
-  const out: LibraryImage[] = [];
-  for (const [path, e] of current) {
-    if (!under(path, e)) continue;
-    const before = base?.get(path);
-    out.push({
+  const changes = new Map(
+    (base ? imageChanges(dir, current, base) : []).map(c => [c.path, c.kind])
+  );
+  const draft = {
+    added: 'new',
+    changed: 'replaced',
+    removed: 'removed',
+  } as const;
+  const image = (path: string, e: Entry): LibraryImage => {
+    const kind = changes.get(path);
+    return {
       path,
       name: baseName(path),
       sha: e.sha,
-      draft: !base
-        ? undefined
-        : !before
-        ? 'new'
-        : before.sha !== e.sha
-        ? 'replaced'
-        : undefined,
-    });
-  }
-  for (const [path, e] of base ?? []) {
-    if (under(path, e) && !current.has(path)) {
-      out.push({ path, name: baseName(path), sha: e.sha, draft: 'removed' });
-    }
+      draft: kind && draft[kind],
+    };
+  };
+  const out = [...current]
+    .filter(([path, e]) => e.type !== 'tree' && isImageIn(dir, path))
+    .map(([path, e]) => image(path, e));
+  for (const [path, kind] of changes) {
+    if (kind === 'removed') out.push(image(path, base!.get(path)!));
   }
   const rank = (i: LibraryImage) => (i.draft === 'new' ? 0 : 1);
   return out.sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
@@ -80,7 +100,6 @@ export function formatSize(bytes: number) {
   return `${mb < 10 ? mb.toFixed(1).replace(/\.0$/, '') : Math.round(mb)} MB`;
 }
 
-// "Not uploaded. It is 18 MB, over the 5 MB limit, and TIFF isn't supported. Save it as JPG or WebP."
 export function uploadProblem(file: { name: string; size: number }) {
   const ext = extension(file.name);
   const tooBig = file.size > MAX_BYTES;
@@ -117,7 +136,6 @@ export function usageLabel(pages: number) {
     : `On ${pages} pages`;
 }
 
-// "An image with this name already exists. Home uses it."
 export function clashMessage(pages: string[]) {
   const used =
     pages.length === 1
@@ -135,7 +153,6 @@ export type PageFile = {
   collection: string;
 };
 
-// Which pages show each picture, by the picture's repo path.
 export function imageUsage(pages: PageFile[]) {
   const out = new Map<string, PageFile[]>();
   for (const page of pages) {

@@ -43,7 +43,7 @@ import {
 import { KeystaticCloudAuthCallback } from './cloud-auth-callback';
 import { getAuth } from './auth';
 import { authPlugin } from './klay/auth';
-import { klayRoute } from './klay/routes';
+import { KLAY_PAGES, klayRoute } from './klay/routes';
 import { assertValidRepoConfig } from './repo-config';
 import { NotFoundBoundary, notFound } from './not-found';
 
@@ -51,17 +51,8 @@ function parseParamsWithoutBranch(params: string[]) {
   if (params.length === 0) {
     return {};
   }
-  if (
-    params.length === 1 &&
-    (params[0] === 'publish' ||
-      params[0] === 'pages' ||
-      params[0] === 'menu-sections' ||
-      params[0] === 'images')
-  ) {
-    return {
-      klay: params[0] as 'publish' | 'pages' | 'menu-sections' | 'images',
-    };
-  }
+  const klay = KLAY_PAGES.find(page => page === params[0]);
+  if (params.length === 1 && klay) return { klay };
   if (params.length === 2 && params[0] === 'singleton') {
     return { singleton: params[1] };
   }

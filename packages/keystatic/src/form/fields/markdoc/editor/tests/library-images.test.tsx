@@ -62,7 +62,6 @@ test('a picture outside the page folder is a library reference', () => {
     ['own.png', false, ''],
     ['shared/hero one.png', true, 'Caption'],
   ]);
-  // Only the page's own picture is written to its folder.
   const { text, files } = save(doc, 'page');
   expect([...files.keys()]).toEqual(['own.png']);
   expect(text).toContain(

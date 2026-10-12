@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { base64Encode } from '#base64';
 
-import { Config } from '../../config';
+import type { WithImageLibrary } from '../../form/fields/markdoc';
 import { useConfig } from '../shell/context';
 import {
   useBranches,
@@ -12,6 +12,7 @@ import {
 import { fetchBlob } from '../useItemData';
 import { getEntriesInCollectionWithTreeKey } from '../utils';
 import { useCommitToDraft } from './draft-commit';
+import { branchHref, useDraftsContext } from './draft-data';
 import { useNewDraftName } from './drafts';
 import {
   ALT_FILE,
@@ -20,27 +21,21 @@ import {
   libraryImages,
   PageFile,
   parseAltTexts,
+  usageLabel,
 } from './images';
 import { useLanguages } from './pages-data';
 import { frontmatterTitle, humanize } from './review';
 import { pageFile } from './review-data';
 
-// The image directory of the pages' content field. A markdoc field lists its
-// image directory after its components' directories.
-export function imageDirectory(config: Config, collection: string | undefined) {
-  const schema = collection ? config.collections?.[collection]?.schema : null;
-  for (const field of Object.values(schema ?? {})) {
-    if (field.kind === 'form' && field.formKind === 'content') {
-      const dirs = field.directories ?? [];
-      if (dirs.length) return dirs[dirs.length - 1];
-    }
-  }
-}
-
+// The image directory and public path of the pages' content field.
 export function useImageDirectory() {
   const config = useConfig();
-  const languages = useLanguages();
-  return imageDirectory(config, languages[0]?.collection);
+  const collection = useLanguages()[0]?.collection;
+  const schema = collection ? config.collections?.[collection]?.schema : null;
+  for (const field of Object.values(schema ?? {})) {
+    const image = (field as Partial<WithImageLibrary>).image;
+    if (image) return image.directory;
+  }
 }
 
 export type PageUse = {
@@ -58,7 +53,9 @@ export type Library =
       images: LibraryImage[];
       onLive: boolean;
       // undefined while the pages are being read
-      usage: Map<string, PageUse[]> | undefined;
+      usersOf: (path: string) => PageUse[] | undefined;
+      // "On 2 pages"; empty while the pages are being read
+      usageOf: (path: string) => string;
       alts: Record<string, string>;
     };
 
@@ -73,7 +70,7 @@ export function useLibrary(): Library {
   const languages = useLanguages();
   const dir = useImageDirectory();
   const [texts, setTexts] = useState(new Map<string, string>());
-  const onLive = !repoInfo || branch === repoInfo.defaultBranch;
+  const onLive = useDraftsContext()?.onLive ?? true;
 
   const plan = useMemo(() => {
     if (trees.merged.kind !== 'loaded' || !dir) return null;
@@ -159,7 +156,8 @@ export function useLibrary(): Library {
       dir: plan.dir,
       images: plan.images,
       onLive,
-      usage,
+      usersOf: path => (usage ? usage.get(path) ?? [] : undefined),
+      usageOf: path => (usage ? usageLabel(usage.get(path)?.length ?? 0) : ''),
       alts: parseAltTexts(read(plan.altPath)),
     };
   }, [plan, texts, onLive]);
@@ -192,27 +190,27 @@ export function useImageBytes(image: LibraryImage | undefined) {
   return bytes && bytes.sha === sha ? bytes.data : undefined;
 }
 
-export type FileWrite = { path: string; contents: Uint8Array };
-
 // Every library change is one commit into the open draft, or a new draft on
-// the live site; the Images page opens again on that draft.
+// the live site; the Images page opens again on that draft. `draftName` is
+// the new draft a commit on the live site starts.
 export function useImageCommit() {
-  const commit = useCommitToDraft();
-  const newDraftName = useNewDraftName();
-  return (input: {
+  const commitToDraft = useCommitToDraft();
+  const draftName = useNewDraftName();
+  const commit = (input: {
     draft: string;
     headline: string;
-    additions?: FileWrite[];
+    additions?: { path: string; contents: Uint8Array }[];
     deletions?: string[];
   }) =>
-    commit({
-      newDraft: newDraftName(input.draft),
+    commitToDraft({
+      newDraft: draftName(input.draft),
       message: { headline: input.headline },
       additions: (input.additions ?? []).map(a => ({
         path: a.path,
         contents: base64Encode(a.contents),
       })),
       deletions: input.deletions,
-      href: b => `/keystatic/branch/${encodeURIComponent(b)}/images`,
+      href: b => `${branchHref(b)}/images`,
     });
+  return { commit, draftName };
 }

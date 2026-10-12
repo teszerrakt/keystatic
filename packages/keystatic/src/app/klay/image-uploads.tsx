@@ -11,7 +11,7 @@ import { css, tokenSchema } from '@keystar/ui/style';
 import { Text } from '@keystar/ui/typography';
 
 import { useObjectURL } from '../../form/fields/image/ui';
-import { contentType } from './images';
+import { ACCEPTED, contentType, UploadPlan, UPLOAD_HINT } from './images';
 
 export type UploadStatus =
   | 'refused'
@@ -30,6 +30,30 @@ export type Upload = {
   path?: string;
   message?: string;
 };
+
+export const DONE: UploadStatus[] = ['refused', 'saved', 'skipped', 'failed'];
+
+export async function toUpload(
+  file: File,
+  plan: UploadPlan,
+  id: number
+): Promise<Upload> {
+  return plan.status === 'refused'
+    ? {
+        id,
+        name: file.name,
+        bytes: new Uint8Array(),
+        status: 'refused',
+        message: plan.message,
+      }
+    : {
+        id,
+        name: file.name,
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        status: plan.status,
+        path: plan.path,
+      };
+}
 
 type Tone = 'critical' | 'caution' | 'neutralSecondary';
 
@@ -145,8 +169,6 @@ export function UploadRow(props: {
   );
 }
 
-const DONE: UploadStatus[] = ['refused', 'saved', 'skipped', 'failed'];
-
 export function UploadList(props: {
   uploads: Upload[];
   usedBy: (path: string) => string;
@@ -195,14 +217,10 @@ export function UploadList(props: {
   );
 }
 
-export const UPLOAD_HINT = 'JPG, PNG, WebP, SVG · up to 5 MB';
-
-// Drop area with a file chooser; `multiple` for the Images page.
 export function ImageDropArea(props: {
   multiple?: boolean;
   isDisabled?: boolean;
   onFiles: (files: File[]) => void;
-  vertical?: boolean;
 }) {
   return (
     <DropZone
@@ -221,12 +239,12 @@ export function ImageDropArea(props: {
         backgroundColor: tokenSchema.color.background.surface,
         borderRadius: tokenSchema.size.radius.large,
         borderWidth: tokenSchema.size.border.regular,
-        flexDirection: props.vertical ? 'column' : 'row',
+        flexDirection: props.multiple ? 'row' : 'column',
         flexWrap: 'wrap',
         justifyContent: 'center',
-        padding: props.vertical
-          ? tokenSchema.size.space.xxlarge
-          : tokenSchema.size.space.large,
+        padding: props.multiple
+          ? tokenSchema.size.space.large
+          : tokenSchema.size.space.xxlarge,
       })}
     >
       <Icon src={imageIcon} color="neutralSecondary" />
@@ -234,7 +252,7 @@ export function ImageDropArea(props: {
         {props.multiple ? 'Drop images here, or' : 'Drop an image here, or'}
       </Text>
       <FileTrigger
-        acceptedFileTypes={['image/*']}
+        acceptedFileTypes={ACCEPTED}
         allowsMultiple={props.multiple}
         onSelect={list => list && props.onFiles([...list])}
       >

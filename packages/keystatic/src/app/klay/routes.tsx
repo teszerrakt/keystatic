@@ -7,8 +7,16 @@ import { ReviewPage } from './review-page';
 import { menuSetup } from './menu-sections-data';
 import { MenuSectionsPage } from './sections-page';
 
+export const KLAY_PAGES = [
+  'publish',
+  'pages',
+  'menu-sections',
+  'images',
+] as const;
+export type KlayPage = (typeof KLAY_PAGES)[number];
+
 type Params = {
-  klay?: 'publish' | 'pages' | 'menu-sections' | 'images';
+  klay?: KlayPage;
   collection?: string;
   kind?: string;
   singleton?: string;

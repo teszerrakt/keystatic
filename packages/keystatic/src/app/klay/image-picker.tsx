@@ -1,14 +1,11 @@
-import {
-  createContext,
-  ReactNode,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 
 import { Button, ButtonGroup } from '@keystar/ui/button';
-import { Dialog, useDialogContainer } from '@keystar/ui/dialog';
+import {
+  Dialog,
+  DialogContainer,
+  useDialogContainer,
+} from '@keystar/ui/dialog';
 import { Box, Flex } from '@keystar/ui/layout';
 import { TextLink } from '@keystar/ui/link';
 import { ProgressCircle } from '@keystar/ui/progress';
@@ -23,6 +20,7 @@ import { Heading, Text } from '@keystar/ui/typography';
 import {
   ImageLibrary,
   ImageLibraryContext,
+  PickedImage,
 } from '../../form/fields/markdoc/editor/image-library';
 import { useEventCallback } from '../../form/fields/markdoc/editor/utils';
 import { useConfig } from '../shell/context';
@@ -33,29 +31,35 @@ import {
   useTree,
 } from '../shell/data';
 import { fetchBlob } from '../useItemData';
+import { branchHref } from './draft-data';
 import { isDraftsOnly } from './drafts';
-import { Dims, dimsText, ImageCard, imageGrid, usePreview } from './image-card';
-import { ClashChoice, ImageDropArea, Upload, UploadRow } from './image-uploads';
 import {
+  ImageCard,
+  imageGrid,
+  ImagePreview,
+  sizeLine,
+  usePreview,
+} from './image-card';
+import {
+  ClashChoice,
+  ImageDropArea,
+  toUpload,
+  Upload,
+  UploadRow,
+} from './image-uploads';
+import {
+  altKey,
   baseName,
   clashMessage,
-  formatSize,
   freePath,
   LibraryImage,
   planUploads,
-  usageLabel,
 } from './images';
 import { useImageDirectory, useLibrary } from './images-data';
 import { CommitExtras } from './page-form';
 
 type Staged = { path: string; bytes: Uint8Array };
-
-// Pictures uploaded from the editor ride along with the page's next save,
-// so an upload never reloads the page and loses unsaved edits.
-const StagedContext = createContext<{
-  staged: Staged[];
-  add: (staged: Staged) => void;
-}>({ staged: [], add: () => {} });
+type PickOptions = Parameters<ImageLibrary['pick']>[0];
 
 export function ImageLibraryProvider(props: {
   extras: CommitExtras;
@@ -72,6 +76,8 @@ export function ImageLibraryProvider(props: {
   );
 }
 
+// Pictures uploaded from the editor ride along with the page's next save,
+// so an upload never reloads the page and loses unsaved edits.
 function LibraryProvider(props: {
   dir: string;
   extras: CommitExtras;
@@ -83,10 +89,15 @@ function LibraryProvider(props: {
   const branches = useBranches();
   const branch = useCurrentBranch();
   const [staged, setStaged] = useState<Staged[]>([]);
+  const [request, setRequest] = useState<
+    (PickOptions & { resolve: (image: PickedImage | null) => void }) | null
+  >(null);
   const { extras, dir } = props;
   const current =
     trees.current.kind === 'loaded' ? trees.current.data.entries : null;
   const head = branches.get(branch)?.commitSha ?? '';
+  const taken = (p: string) =>
+    !!current?.has(p) || staged.some(s => s.path === p);
 
   useEffect(() => {
     if (!staged.length) return;
@@ -96,9 +107,8 @@ function LibraryProvider(props: {
     return () => extras.set('images', null);
   }, [staged, extras]);
 
-  const add = useEventCallback((next: Staged) =>
-    setStaged(prev => [...prev.filter(s => s.path !== next.path), next])
-  );
+  const add = (next: Staged) =>
+    setStaged(prev => [...prev.filter(s => s.path !== next.path), next]);
   const load = useEventCallback(async (path: string) => {
     const waiting = staged.find(s => s.path === path);
     if (waiting) return waiting.bytes;
@@ -108,8 +118,6 @@ function LibraryProvider(props: {
   });
   // Drop and paste have no room to ask about a clash: they keep both.
   const stage = useEventCallback(async (file: File) => {
-    const taken = (p: string) =>
-      !!current?.has(p) || staged.some(s => s.path === p);
     const [plan] = planUploads([file], dir, taken);
     if (plan.status === 'refused') {
       toastQueue.critical(`${file.name}: ${plan.message}`, { timeout: 8000 });
@@ -122,16 +130,36 @@ function LibraryProvider(props: {
     add(next);
     return next;
   });
-  const library = useMemo(
-    (): ImageLibrary => ({ load, stage, Picker: ImagePicker }),
-    [load, stage]
+  const pick = useEventCallback(
+    (options: PickOptions) =>
+      new Promise<PickedImage | null>(resolve =>
+        setRequest({ ...options, resolve })
+      )
   );
+  const library = useMemo(
+    (): ImageLibrary => ({ load, stage, pick }),
+    [load, stage, pick]
+  );
+  const close = (image: PickedImage | null) => {
+    request?.resolve(image);
+    setRequest(null);
+  };
   return (
-    <StagedContext.Provider value={{ staged, add }}>
-      <ImageLibraryContext.Provider value={library}>
-        {props.children}
-      </ImageLibraryContext.Provider>
-    </StagedContext.Provider>
+    <ImageLibraryContext.Provider value={library}>
+      {props.children}
+      <DialogContainer onDismiss={() => close(null)}>
+        {request && (
+          <ImagePicker
+            directory={dir}
+            current={request.current}
+            staged={staged}
+            add={add}
+            taken={taken}
+            onPick={close}
+          />
+        )}
+      </DialogContainer>
+    </ImageLibraryContext.Provider>
   );
 }
 
@@ -149,44 +177,16 @@ function Details(props: {
   onAlt: (alt: string) => void;
   onCaption: (caption: string) => void;
 }) {
-  const { bytes, url } = usePreview(props.image, props.bytes);
-  const [dims, setDims] = useState<Dims>();
+  const preview = usePreview(props.image, props.bytes);
   return (
     <Flex direction="column" gap="large">
       <Box border="neutral" borderRadius="regular" padding="regular">
-        {url ? (
-          <img
-            src={url}
-            alt=""
-            className={css({
-              display: 'block',
-              height: 140,
-              objectFit: 'contain',
-              width: '100%',
-            })}
-            onLoad={e =>
-              setDims({
-                width: e.currentTarget.naturalWidth,
-                height: e.currentTarget.naturalHeight,
-              })
-            }
-          />
-        ) : (
-          <Flex
-            alignItems="center"
-            justifyContent="center"
-            UNSAFE_className={css({ height: 140 })}
-          >
-            <ProgressCircle isIndeterminate aria-label="Loading image" />
-          </Flex>
-        )}
+        <ImagePreview preview={preview} height={140} />
       </Box>
       <Flex direction="column" gap="small">
         <Text weight="semibold">{props.image.name}</Text>
         <Text size="small" color="neutralSecondary">
-          {[dimsText(dims), bytes && formatSize(bytes.byteLength)]
-            .filter(Boolean)
-            .join(' · ') || ' '}
+          {sizeLine(preview.dims, preview.bytes)}
         </Text>
       </Flex>
       <TextField
@@ -205,21 +205,19 @@ function Details(props: {
   );
 }
 
-function ImagePicker(props: {
-  directory: string;
-  current?: { path: string; alt: string; title: string };
-  onPick(image: {
-    path: string;
-    bytes: Uint8Array;
-    alt: string;
-    title: string;
-  }): void;
-}) {
+function ImagePicker(
+  props: PickOptions & {
+    directory: string;
+    staged: Staged[];
+    add: (staged: Staged) => void;
+    taken: (path: string) => boolean;
+    onPick(image: PickedImage): void;
+  }
+) {
   const dialog = useDialogContainer();
   const library = useLibrary();
   const branch = useCurrentBranch();
-  const { staged, add } = useContext(StagedContext);
-  const trees = useTree();
+  const { staged, add, taken } = props;
   const [tab, setTab] = useState<'library' | 'upload'>('library');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(props.current?.path ?? null);
@@ -227,10 +225,6 @@ function ImagePicker(props: {
   const [caption, setCaption] = useState(props.current?.title ?? '');
   const [upload, setUpload] = useState<Upload | null>(null);
   const loaded = library.kind === 'loaded' ? library : null;
-  const current =
-    trees.current.kind === 'loaded' ? trees.current.data.entries : null;
-  const taken = (p: string) =>
-    !!current?.has(p) || staged.some(s => s.path === p);
 
   const images = useMemo(() => {
     const inTree = (loaded?.images ?? []).filter(
@@ -259,7 +253,7 @@ function ImagePicker(props: {
       setAlt(props.current.alt);
       setCaption(props.current.title);
     } else {
-      setAlt(loaded?.alts[path.slice(props.directory.length + 1)] ?? '');
+      setAlt(loaded?.alts[altKey(props.directory, path)] ?? '');
       setCaption('');
     }
   };
@@ -274,18 +268,7 @@ function ImagePicker(props: {
   const onFiles = async ([file]: File[]) => {
     if (!file) return;
     const [plan] = planUploads([file], props.directory, taken);
-    const u: Upload = {
-      id: 0,
-      name: file.name,
-      bytes:
-        plan.status === 'refused'
-          ? new Uint8Array()
-          : new Uint8Array(await file.arrayBuffer()),
-      status: plan.status,
-      ...(plan.status === 'refused'
-        ? { message: plan.message }
-        : { path: plan.path }),
-    };
+    const u = await toUpload(file, plan, 0);
     if (plan.status === 'ready') accept(u, plan.path);
     else setUpload(u);
   };
@@ -297,7 +280,6 @@ function ImagePicker(props: {
       choice === 'replace' ? upload.path : freePath(upload.path, taken)
     );
   };
-  const usersOf = (path: string) => loaded?.usage?.get(path) ?? [];
 
   return (
     <Dialog size="large">
@@ -349,9 +331,7 @@ function ImagePicker(props: {
                           usage={
                             stagedBytes(i.path)
                               ? 'New picture'
-                              : loaded.usage
-                              ? usageLabel(usersOf(i.path).length)
-                              : ''
+                              : loaded.usageOf(i.path)
                           }
                           selected={i.path === selected}
                           onSelect={() => pick(i.path)}
@@ -399,13 +379,15 @@ function ImagePicker(props: {
             </Item>
             <Item key="upload">
               <Flex direction="column" gap="regular">
-                <ImageDropArea vertical onFiles={onFiles} />
+                <ImageDropArea onFiles={onFiles} />
                 {upload && (
                   <Box border="muted" borderRadius="large">
                     <UploadRow
                       upload={upload}
                       usedBy={clashMessage(
-                        usersOf(upload.path ?? '').map(p => p.title)
+                        (loaded?.usersOf(upload.path ?? '') ?? []).map(
+                          p => p.title
+                        )
                       )}
                       busy={false}
                       onChoose={choose}
@@ -422,10 +404,7 @@ function ImagePicker(props: {
         </Tabs>
       </Content>
       <Footer>
-        <TextLink
-          href={`/keystatic/branch/${encodeURIComponent(branch)}/images`}
-          target="_blank"
-        >
+        <TextLink href={`${branchHref(branch)}/images`} target="_blank">
           Manage images
         </TextLink>
       </Footer>

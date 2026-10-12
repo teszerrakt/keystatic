@@ -1,22 +1,14 @@
 import { Fragment, Slice } from 'prosemirror-model';
-import { useState } from 'react';
 import { Plugin } from 'prosemirror-state';
 import { dropPoint } from 'prosemirror-transform';
 
-import { DialogContainer } from '@keystar/ui/dialog';
 import { Icon } from '@keystar/ui/icon';
 import { imageIcon } from '@keystar/ui/icon/icons/imageIcon';
 import { Tooltip, TooltipTrigger } from '@keystar/ui/tooltip';
 import { Text } from '@keystar/ui/typography';
 
-import { getUploadedFileObject } from '../../image/ui';
-import { EditorSchema } from './schema';
-import { useEditorDispatchCommand, useEditorSchema } from './editor-view';
-import {
-  libraryImageAttrs,
-  newImageAttrs,
-  useImageLibrary,
-} from './image-library';
+import { EditorSchema, getEditorSchema } from './schema';
+import { chooseImageAttrs, newImageAttrs } from './image-library';
 import { ToolbarButton } from './Toolbar';
 import { EditorConfig } from '../config';
 import { getSrcPrefix } from '../../image/getSrcPrefix';
@@ -139,64 +131,32 @@ export function imageDropPlugin(schema: EditorSchema) {
   });
 }
 export function ImageToolbarButton() {
-  const schema = useEditorSchema();
-  const runCommand = useEditorDispatchCommand();
-  const library = useImageLibrary(schema.config);
-  const [picking, setPicking] = useState(false);
   return (
-    <>
-      <TooltipTrigger>
-        <ToolbarButton
-          aria-label="Image"
-          command={(_, dispatch, view) => {
-            if (dispatch && view) {
-              if (library) {
-                setPicking(true);
-                return true;
-              }
-              (async () => {
-                const file = await getUploadedFileObject('image/*');
-                if (!file || !schema.config.image) return;
-                const attrs = await newImageAttrs(file, schema.config, view);
-                if (!attrs) return;
-                view.dispatch(
-                  view.state.tr.replaceSelectionWith(
-                    view.state.schema.nodes.image.createChecked(attrs)
-                  )
-                );
-              })();
-            }
-            return true;
-          }}
-        >
-          <Icon src={imageIcon} />
-        </ToolbarButton>
-        <Tooltip>
-          <Text>Image</Text>
-        </Tooltip>
-      </TooltipTrigger>
-      {library && (
-        <DialogContainer onDismiss={() => setPicking(false)}>
-          {picking && (
-            <library.library.Picker
-              directory={library.directory}
-              onPick={image => {
-                setPicking(false);
-                runCommand((state, dispatch) => {
-                  dispatch?.(
-                    state.tr.replaceSelectionWith(
-                      state.schema.nodes.image.createChecked(
-                        libraryImageAttrs(schema.config, image)
-                      )
-                    )
-                  );
-                  return true;
-                });
-              }}
-            />
-          )}
-        </DialogContainer>
-      )}
-    </>
+    <TooltipTrigger>
+      <ToolbarButton
+        aria-label="Image"
+        command={(_, dispatch, view) => {
+          if (dispatch && view) {
+            (async () => {
+              const schema = getEditorSchema(view.state.schema);
+              if (!schema.config.image) return;
+              const attrs = await chooseImageAttrs(schema.config, view);
+              if (!attrs) return;
+              view.dispatch(
+                view.state.tr.replaceSelectionWith(
+                  view.state.schema.nodes.image.createChecked(attrs)
+                )
+              );
+            })();
+          }
+          return true;
+        }}
+      >
+        <Icon src={imageIcon} />
+      </ToolbarButton>
+      <Tooltip>
+        <Text>Image</Text>
+      </Tooltip>
+    </TooltipTrigger>
   );
 }

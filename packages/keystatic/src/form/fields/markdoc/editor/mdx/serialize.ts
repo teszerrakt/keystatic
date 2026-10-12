@@ -1,7 +1,7 @@
 import { Fragment, Mark, Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorSchema, getEditorSchema } from '../schema';
 import { getSrcPrefixForImageBlock } from '../images';
-import { libraryImageSrc } from '../image-library';
+import { librarySrc } from '../image-library';
 import { fixPath } from '../../../../../app/path-utils';
 import { PhrasingContent, ListItem, BlockContent, Root } from 'mdast';
 import { MdxJsxAttribute } from 'mdast-util-mdx';
@@ -62,10 +62,11 @@ function getLeafContent(
   if (node.type === schema.nodes.hard_break) {
     return { type: 'break' };
   }
-  if (node.type === schema.nodes.image && node.attrs.fromLibrary) {
+  const library = librarySrc(state.schema.config, node);
+  if (node.type === schema.nodes.image && library) {
     return {
       type: 'image',
-      url: encodeURI(libraryImageSrc(state.schema.config, node.attrs.filename)),
+      url: library,
       alt: node.attrs.alt,
       title: node.attrs.title,
     };

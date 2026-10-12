@@ -1,3 +1,4 @@
+import { fixPath } from '../../../app/path-utils';
 import { text } from '../text';
 import { BasicFormField, SlugFormField, ComponentSchema } from '../../api';
 import { FieldDataError } from '../error';
@@ -176,4 +177,14 @@ export function editorOptionsToConfig(options: EditorOptions): EditorConfig {
                 : {},
           },
   };
+}
+
+// Klay's image library needs a public path: without one a src cannot name
+// another folder.
+export function libraryConfig(config: EditorConfig) {
+  const image = config.image;
+  return typeof image?.directory === 'string' &&
+    typeof image.publicPath === 'string'
+    ? { directory: fixPath(image.directory), publicPath: image.publicPath }
+    : undefined;
 }

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { SyntheticEvent, useState } from 'react';
 
 import { Badge } from '@keystar/ui/badge';
 import { Icon } from '@keystar/ui/icon';
 import { checkIcon } from '@keystar/ui/icon/icons/checkIcon';
 import { Flex } from '@keystar/ui/layout';
-import { css, tokenSchema } from '@keystar/ui/style';
+import { ProgressCircle } from '@keystar/ui/progress';
+import { classNames, css, tokenSchema } from '@keystar/ui/style';
 import { Text } from '@keystar/ui/typography';
 
 import { useObjectURL } from '../../form/fields/image/ui';
@@ -82,6 +83,14 @@ export type Dims = { width: number; height: number };
 export const dimsText = (d: Dims | undefined) =>
   d ? `${d.width} × ${d.height}` : '';
 
+export const sizeLine = (
+  dims: Dims | undefined,
+  bytes: Uint8Array | undefined
+) =>
+  [dimsText(dims), bytes && formatSize(bytes.byteLength)]
+    .filter(Boolean)
+    .join(' · ') || ' ';
+
 // `known` holds bytes not in the tree yet: a picture waiting for a save.
 export function usePreview(
   image: LibraryImage | undefined,
@@ -90,7 +99,47 @@ export function usePreview(
   const fetched = useImageBytes(known ? undefined : image);
   const bytes = known ?? fetched;
   const url = useObjectURL(bytes ?? null, contentType(image?.name ?? ''));
-  return { bytes, url };
+  const [dims, setDims] = useState<Dims>();
+  const onLoad = (e: SyntheticEvent<HTMLImageElement>) =>
+    setDims({
+      width: e.currentTarget.naturalWidth,
+      height: e.currentTarget.naturalHeight,
+    });
+  return { bytes, url, dims, onLoad };
+}
+
+export function ImagePreview(props: {
+  preview: ReturnType<typeof usePreview>;
+  alt?: string;
+  height?: number;
+  className?: string;
+}) {
+  const { url, onLoad } = props.preview;
+  const box = classNames(
+    props.className,
+    props.height !== undefined &&
+      css({
+        display: 'block',
+        height: props.height,
+        objectFit: 'contain',
+        width: '100%',
+      })
+  );
+  if (url) {
+    return (
+      <img className={box} src={url} alt={props.alt ?? ''} onLoad={onLoad} />
+    );
+  }
+  if (props.height === undefined) return <span className={box} />;
+  return (
+    <Flex
+      alignItems="center"
+      justifyContent="center"
+      UNSAFE_className={css({ height: props.height })}
+    >
+      <ProgressCircle isIndeterminate aria-label="Loading image" />
+    </Flex>
+  );
 }
 
 export function ImageCard(props: {
@@ -98,13 +147,11 @@ export function ImageCard(props: {
   usage: string;
   selected: boolean;
   onSelect: () => void;
-  // The insert dialog's smaller card: no size line, a tick when picked.
   compact?: boolean;
   bytes?: Uint8Array;
 }) {
   const { image } = props;
-  const { bytes, url } = usePreview(image, props.bytes);
-  const [dims, setDims] = useState<Dims>();
+  const preview = usePreview(image, props.bytes);
   return (
     <button
       type="button"
@@ -112,21 +159,7 @@ export function ImageCard(props: {
       aria-pressed={props.selected}
       onClick={props.onSelect}
     >
-      {url ? (
-        <img
-          className={thumb}
-          src={url}
-          alt=""
-          onLoad={e =>
-            setDims({
-              width: e.currentTarget.naturalWidth,
-              height: e.currentTarget.naturalHeight,
-            })
-          }
-        />
-      ) : (
-        <span className={thumb} />
-      )}
+      <ImagePreview preview={preview} className={thumb} />
       {props.compact && props.selected && (
         <span className={tick}>
           <Icon src={checkIcon} size="small" color="inherit" />
@@ -147,9 +180,7 @@ export function ImageCard(props: {
         </Text>
         {!props.compact && (
           <Text size="small" color="neutralSecondary">
-            {[dimsText(dims), bytes && formatSize(bytes.byteLength)]
-              .filter(Boolean)
-              .join(' · ') || ' '}
+            {sizeLine(preview.dims, preview.bytes)}
           </Text>
         )}
         <Flex alignItems="center" gap="regular" minHeight="element.small">

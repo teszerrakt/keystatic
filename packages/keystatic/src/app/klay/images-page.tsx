@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
 import { ActionGroup, Item } from '@keystar/ui/action-group';
 import { ActionButton, Button, ButtonGroup } from '@keystar/ui/button';
@@ -25,17 +25,26 @@ import { Heading, Text } from '@keystar/ui/typography';
 
 import { useEventCallback } from '../../form/fields/markdoc/editor/utils';
 import { useCurrentBranch, useTree } from '../shell/data';
-import { useDraftsContext } from './draft-data';
-import { useNewDraftName } from './drafts';
-import { Dims, dimsText, ImageCard, imageGrid, usePreview } from './image-card';
+import { branchHref, useDraftsContext } from './draft-data';
+import {
+  dimsText,
+  ImageCard,
+  imageGrid,
+  ImagePreview,
+  usePreview,
+} from './image-card';
 import {
   ClashChoice,
+  DONE,
   ImageDropArea,
+  toUpload,
   Upload,
   UploadList,
 } from './image-uploads';
 import {
+  ACCEPTED,
   ALT_FILE,
+  altKey,
   clashMessage,
   contentType,
   extension,
@@ -44,8 +53,8 @@ import {
   LibraryImage,
   planUploads,
   serializeAltTexts,
+  stem,
   uploadProblem,
-  usageLabel,
 } from './images';
 import { PageUse, useImageCommit, useLibrary } from './images-data';
 
@@ -54,10 +63,6 @@ const pane = css({
   flex: '0 0 340px',
   overflowY: 'auto',
 });
-
-function usersOf(usage: Map<string, PageUse[]> | undefined, path: string) {
-  return usage?.get(path) ?? [];
-}
 
 export function PageList(props: { pages: PageUse[]; base: string }) {
   return (
@@ -84,18 +89,16 @@ function RemoveImageDialog(props: {
   image: LibraryImage;
   pages: PageUse[];
   base: string;
+  // The draft a removal on the live site starts.
+  newDraft: string;
   onRemove: () => Promise<void>;
 }) {
   const dialog = useDialogContainer();
   const drafts = useDraftsContext();
   const branch = useCurrentBranch();
-  const newDraftName = useNewDraftName();
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const stem = props.image.name.replace(/\.[^.]+$/, '');
-  const draftName = drafts?.title(
-    drafts.onLive ? newDraftName(`remove-${stem}`) : branch
-  );
+  const draftName = drafts?.title(drafts.onLive ? props.newDraft : branch);
   const n = props.pages.length;
   return (
     <Dialog size={n ? 'medium' : 'small'}>
@@ -182,8 +185,8 @@ function ImageDetails(props: {
   onSaveAlt: (alt: string) => Promise<void>;
 }) {
   const { image } = props;
-  const { bytes, url } = usePreview(image);
-  const [dims, setDims] = useState<Dims>();
+  const preview = usePreview(image);
+  const { bytes, dims } = preview;
   const [copied, setCopied] = useState(false);
   const [alt, setAlt] = useState<string | null>(null);
   const [savingAlt, setSavingAlt] = useState(false);
@@ -211,32 +214,7 @@ function ImageDetails(props: {
         </ActionButton>
       </Flex>
       <Box border="neutral" borderRadius="regular" padding="regular">
-        {url ? (
-          <img
-            src={url}
-            alt={props.alt}
-            className={css({
-              display: 'block',
-              height: 192,
-              objectFit: 'contain',
-              width: '100%',
-            })}
-            onLoad={e =>
-              setDims({
-                width: e.currentTarget.naturalWidth,
-                height: e.currentTarget.naturalHeight,
-              })
-            }
-          />
-        ) : (
-          <Flex
-            alignItems="center"
-            justifyContent="center"
-            UNSAFE_className={css({ height: 192 })}
-          >
-            <ProgressCircle isIndeterminate aria-label="Loading image" />
-          </Flex>
-        )}
+        <ImagePreview preview={preview} alt={props.alt} height={192} />
       </Box>
       {removed && (
         <Notice tone="caution">
@@ -357,7 +335,7 @@ function ImageDetails(props: {
         ) : (
           <>
             <FileTrigger
-              acceptedFileTypes={['image/*']}
+              acceptedFileTypes={ACCEPTED}
               onSelect={list => list?.[0] && props.onReplace(list[0])}
             >
               <Button isDisabled={props.busy}>Replace file…</Button>
@@ -377,13 +355,12 @@ function ImageDetails(props: {
 }
 
 let uploadIds = 0;
-const DONE = ['refused', 'saved', 'skipped', 'failed'];
 
 export function ImagesPage() {
   const branch = useCurrentBranch();
   const trees = useTree();
   const library = useLibrary();
-  const commit = useImageCommit();
+  const { commit, draftName } = useImageCommit();
   const [search, setSearch] = useState('');
   const [usageFilter, setUsageFilter] = useState<'all' | 'used' | 'unused'>(
     'all'
@@ -397,26 +374,24 @@ export function ImagesPage() {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [busy, setBusy] = useState(false);
 
-  const base = `/keystatic/branch/${encodeURIComponent(branch)}`;
+  const base = branchHref(branch);
   const current =
     trees.merged.kind === 'loaded' ? trees.merged.data.current : null;
   const exists = (path: string) => !!current?.entries.has(path);
   const loaded = library.kind === 'loaded' ? library : null;
-  const images = useMemo(() => loaded?.images ?? [], [loaded]);
+  const images = loaded?.images ?? [];
   const onLive = loaded?.onLive ?? true;
   const present = images.filter(i => i.draft !== 'removed');
   const changed = images.filter(i => i.draft);
   const shown = onLive ? 'all' : view;
 
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (shown === 'changed' ? changed : present).filter(i => {
-      const n = loaded?.usage ? usersOf(loaded.usage, i.path).length : null;
-      if (usageFilter === 'used' && n === 0) return false;
-      if (usageFilter === 'unused' && n !== null && n > 0) return false;
-      return !q || i.name.toLowerCase().includes(q);
-    });
-  }, [search, shown, changed, present, usageFilter, loaded]);
+  const q = search.trim().toLowerCase();
+  const visible = (shown === 'changed' ? changed : present).filter(i => {
+    const n = loaded?.usersOf(i.path)?.length;
+    if (usageFilter === 'used' && n === 0) return false;
+    if (usageFilter === 'unused' && n) return false;
+    return !q || i.name.toLowerCase().includes(q);
+  });
 
   const selectedImage = images.find(i => i.path === selected);
 
@@ -451,22 +426,8 @@ export function ImagesPage() {
   const addFiles = async (files: File[]) => {
     if (!loaded || !files.length) return;
     const plans = planUploads(files, loaded.dir, exists);
-    const next: Upload[] = await Promise.all(
-      files.map(async (file, i) => {
-        const plan = plans[i];
-        return {
-          id: ++uploadIds,
-          name: file.name,
-          bytes:
-            plan.status === 'refused'
-              ? new Uint8Array()
-              : new Uint8Array(await file.arrayBuffer()),
-          status: plan.status,
-          ...(plan.status === 'refused'
-            ? { message: plan.message }
-            : { path: plan.path }),
-        };
-      })
+    const next = await Promise.all(
+      files.map((file, i) => toUpload(file, plans[i], ++uploadIds))
     );
     setUploads(prev => [
       ...prev.filter(u => !DONE.includes(u.status)),
@@ -489,30 +450,33 @@ export function ImagesPage() {
     send([ready]);
   };
 
-  const restore = useEventCallback(
-    async (image: LibraryImage, bytes: Uint8Array) => {
-      setBusy(true);
-      try {
-        await commit({
-          draft: 'restore-image',
-          headline: `Restore ${image.path}`,
-          additions: [{ path: image.path, contents: bytes }],
-        });
-        toastQueue.positive(`“${image.name}” is back in this draft.`, {
-          timeout: 5000,
-        });
-      } catch (e) {
-        toastQueue.critical((e as Error).message, { timeout: 8000 });
-      } finally {
-        setBusy(false);
-      }
+  const run = async (input: Parameters<typeof commit>[0], done: string) => {
+    setBusy(true);
+    try {
+      await commit(input);
+      toastQueue.positive(done, { timeout: 5000 });
+    } catch (e) {
+      toastQueue.critical((e as Error).message, { timeout: 8000 });
+    } finally {
+      setBusy(false);
     }
+  };
+
+  // Undo runs after the removal's commit, maybe on the draft it started.
+  const restore = useEventCallback((image: LibraryImage, bytes: Uint8Array) =>
+    run(
+      {
+        draft: 'restore-image',
+        headline: `Restore ${image.path}`,
+        additions: [{ path: image.path, contents: bytes }],
+      },
+      `“${image.name}” is back in this draft.`
+    )
   );
 
   const remove = async (image: LibraryImage, bytes: Uint8Array) => {
-    const stem = image.name.replace(/\.[^.]+$/, '');
     await commit({
-      draft: `remove-${stem}`,
+      draft: `remove-${stem(image.name)}`,
       headline: `Delete ${image.path}`,
       deletions: [image.path],
     });
@@ -537,11 +501,9 @@ export function ImagesPage() {
       toastQueue.critical(problem, { timeout: 8000 });
       return;
     }
-    setBusy(true);
-    try {
-      const stem = image.name.replace(/\.[^.]+$/, '');
-      await commit({
-        draft: `replace-${stem}`,
+    await run(
+      {
+        draft: `replace-${stem(image.name)}`,
         headline: `Replace ${image.path}`,
         additions: [
           {
@@ -549,20 +511,13 @@ export function ImagesPage() {
             contents: new Uint8Array(await file.arrayBuffer()),
           },
         ],
-      });
-      toastQueue.positive(`“${image.name}” is replaced in this draft.`, {
-        timeout: 5000,
-      });
-    } catch (e) {
-      toastQueue.critical((e as Error).message, { timeout: 8000 });
-    } finally {
-      setBusy(false);
-    }
+      },
+      `“${image.name}” is replaced in this draft.`
+    );
   };
 
   const saveAlt = async (image: LibraryImage, alt: string) => {
     if (!loaded) return;
-    const key = image.path.slice(loaded.dir.length + 1);
     await commit({
       draft: 'alt-text',
       headline: `Update ${loaded.dir}/${ALT_FILE}`,
@@ -570,7 +525,10 @@ export function ImagesPage() {
         {
           path: `${loaded.dir}/${ALT_FILE}`,
           contents: new TextEncoder().encode(
-            serializeAltTexts({ ...loaded.alts, [key]: alt })
+            serializeAltTexts({
+              ...loaded.alts,
+              [altKey(loaded.dir, image.path)]: alt,
+            })
           ),
         },
       ],
@@ -578,7 +536,7 @@ export function ImagesPage() {
   };
 
   const usedBy = (path: string) =>
-    clashMessage(usersOf(loaded?.usage, path).map(p => p.title));
+    clashMessage((loaded?.usersOf(path) ?? []).map(p => p.title));
 
   return (
     <Flex
@@ -619,7 +577,7 @@ export function ImagesPage() {
           )}
           <Box marginStart="auto">
             <FileTrigger
-              acceptedFileTypes={['image/*']}
+              acceptedFileTypes={ACCEPTED}
               allowsMultiple
               onSelect={list => list && addFiles([...list])}
             >
@@ -695,11 +653,7 @@ export function ImagesPage() {
                   <ImageCard
                     key={image.path}
                     image={image}
-                    usage={
-                      loaded.usage
-                        ? usageLabel(usersOf(loaded.usage, image.path).length)
-                        : ''
-                    }
+                    usage={loaded.usageOf(image.path)}
                     selected={image.path === selected}
                     onSelect={() => setSelected(image.path)}
                   />
@@ -718,10 +672,8 @@ export function ImagesPage() {
           <ImageDetails
             key={selectedImage.path}
             image={selectedImage}
-            pages={loaded.usage && usersOf(loaded.usage, selectedImage.path)}
-            alt={
-              loaded.alts[selectedImage.path.slice(loaded.dir.length + 1)] ?? ''
-            }
+            pages={loaded.usersOf(selectedImage.path)}
+            alt={loaded.alts[altKey(loaded.dir, selectedImage.path)] ?? ''}
             base={base}
             busy={busy}
             onClose={() => setSelected(null)}
@@ -737,8 +689,9 @@ export function ImagesPage() {
         {removing && (
           <RemoveImageDialog
             image={removing.image}
-            pages={usersOf(loaded?.usage, removing.image.path)}
+            pages={loaded?.usersOf(removing.image.path) ?? []}
             base={base}
+            newDraft={draftName(`remove-${stem(removing.image.name)}`)}
             onRemove={() => remove(removing.image, removing.bytes)}
           />
         )}

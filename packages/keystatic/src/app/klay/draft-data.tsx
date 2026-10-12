@@ -475,7 +475,7 @@ export function DraftsProvider(props: { children: ReactNode }) {
   );
 }
 
-const branchHref = (branch: string) =>
+export const branchHref = (branch: string) =>
   `/keystatic/branch/${encodeURIComponent(branch)}`;
 
 function DraftsProviderInner(props: { children: ReactNode }) {

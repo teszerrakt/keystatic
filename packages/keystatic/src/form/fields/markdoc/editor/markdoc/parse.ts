@@ -8,7 +8,7 @@ import {
 import { EditorSchema } from '../schema';
 import { fixPath } from '../../../../../app/path-utils';
 import { getSrcPrefixForImageBlock } from '../images';
-import { libraryFilename } from '../image-library';
+import { libraryImageNode } from '../image-library';
 import { deserializeProps, toSerialized } from '../props-serialization';
 
 let _state:
@@ -404,16 +404,13 @@ function markdocNodeToProseMirrorNode(
         filename,
       });
     }
-    const libraryFile = libraryFilename(schema.config, fullFilename);
-    if (libraryFile && schema.nodes.image) {
-      return schema.nodes.image.createChecked({
-        src: new Uint8Array(),
-        alt: node.attributes.alt,
-        title: node.attributes.title,
-        filename: libraryFile,
-        fromLibrary: true,
-      });
-    }
+    const library = libraryImageNode(
+      schema,
+      fullFilename,
+      node.attributes.alt,
+      node.attributes.title
+    );
+    if (library) return library;
     return schema.schema.text(
       `![${node.attributes.alt || ''}](${node.attributes.src || ''}${
         node.attributes.title?.length ? ` "${node.attributes.title}"` : ''

@@ -1,9 +1,11 @@
+import type { Node } from 'prosemirror-model';
 import { EditorView } from 'prosemirror-view';
-import { createContext, ReactElement, useContext } from 'react';
+import { createContext, useContext } from 'react';
 
-import { fixPath } from '../../../../app/path-utils';
 import { getSrcPrefix } from '../../image/getSrcPrefix';
-import { EditorConfig } from '../config';
+import { getUploadedFileObject } from '../../image/ui';
+import { EditorConfig, libraryConfig } from '../config';
+import type { EditorSchema } from './schema';
 
 // Paths are repo paths under the configured image directory.
 export type PickedImage = {
@@ -20,62 +22,63 @@ export type ImageLibrary = {
   // Checks a new picture and queues it for the page's next save; null when
   // it was refused (the library says why).
   stage(file: File): Promise<{ path: string; bytes: Uint8Array } | null>;
-  Picker: (props: {
-    directory: string;
-    // Set when "Change image" opened the picker.
+  // The Insert image dialog; `current` is set by "Change image".
+  pick(options: {
     current?: { path: string; alt: string; title: string };
-    onPick(image: PickedImage): void;
-  }) => ReactElement;
+  }): Promise<PickedImage | null>;
 };
 
 export const ImageLibraryContext = createContext<ImageLibrary | null>(null);
 
-type LibraryConfig = { directory: string; publicPath: string };
-
-function libraryConfig(config: EditorConfig): LibraryConfig | undefined {
-  const image = config.image;
-  return typeof image?.directory === 'string' &&
-    typeof image.publicPath === 'string'
-    ? { directory: fixPath(image.directory), publicPath: image.publicPath }
-    : undefined;
-}
-
-// The library needs a public path: without one a src cannot name another folder.
 export function useImageLibrary(config: EditorConfig) {
   const library = useContext(ImageLibraryContext);
-  const image = libraryConfig(config);
-  return library && image ? { library, ...image } : null;
+  return library && libraryConfig(config) ? library : null;
 }
 
-// Node `filename` of a library picture: its path under the image directory.
-export function libraryFilename(config: EditorConfig, src: string) {
-  const image = libraryConfig(config);
-  if (!image) return;
-  const base = getSrcPrefix(image.publicPath, undefined);
-  return src.startsWith(base) ? src.slice(base.length) : undefined;
+const srcBase = (config: EditorConfig) =>
+  getSrcPrefix(libraryConfig(config)?.publicPath, undefined);
+
+// A src under the image directory but outside the page's folder.
+export function libraryImageNode(
+  schema: EditorSchema,
+  src: string,
+  alt: string | undefined,
+  title: string | null | undefined
+) {
+  const base = libraryConfig(schema.config) && srcBase(schema.config);
+  const filename = base && src.startsWith(base) && src.slice(base.length);
+  if (!filename || !schema.nodes.image) return;
+  return schema.nodes.image.createChecked({
+    src: new Uint8Array(),
+    alt,
+    title,
+    filename,
+    fromLibrary: true,
+  });
 }
 
-export function libraryImageSrc(config: EditorConfig, filename: string) {
-  const image = libraryConfig(config);
-  return `${getSrcPrefix(image?.publicPath, undefined)}${filename}`;
+// The encoded src of a library picture node; undefined for any other image.
+export function librarySrc(config: EditorConfig, node: Node) {
+  if (!node.attrs.fromLibrary) return;
+  return encodeURI(`${srcBase(config)}${node.attrs.filename}`);
 }
 
 export function libraryImagePath(config: EditorConfig, filename: string) {
   return `${libraryConfig(config)?.directory}/${filename}`;
 }
 
-export function libraryFilenameOf(config: EditorConfig, path: string) {
+function libraryFilenameOf(config: EditorConfig, path: string) {
   const dir = libraryConfig(config)?.directory;
   return dir && path.startsWith(`${dir}/`) ? path.slice(dir.length + 1) : path;
 }
 
 // What `useEditorView` hands every node view and plugin.
 export function viewImageLibrary(view: EditorView) {
-  return (view.props as { imageLibrary?: ImageLibrary }).imageLibrary;
+  const props = view.props as { imageLibrary?: ImageLibrary | null };
+  return props.imageLibrary ?? null;
 }
 
-// A picture added by drop, paste or the file chooser joins the library when
-// there is one, so it never lands in the page's own folder.
+// With a library, a new picture never lands in the page's own folder.
 export async function newImageAttrs(
   file: File,
   config: EditorConfig,
@@ -106,4 +109,16 @@ export function libraryImageAttrs(config: EditorConfig, image: PickedImage) {
     alt: image.alt,
     title: image.title,
   };
+}
+
+// The toolbar button and the insert menu: the Insert image dialog when there
+// is a library, else the file chooser.
+export async function chooseImageAttrs(config: EditorConfig, view: EditorView) {
+  const library = viewImageLibrary(view);
+  if (library && libraryConfig(config)) {
+    const image = await library.pick({});
+    return image && libraryImageAttrs(config, image);
+  }
+  const file = await getUploadedFileObject('image/*');
+  return file ? newImageAttrs(file, config, view) : null;
 }

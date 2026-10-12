@@ -7,7 +7,7 @@ import {
 import { EditorSchema } from '../schema';
 import { fixPath } from '../../../../../app/path-utils';
 import { getSrcPrefixForImageBlock } from '../images';
-import { libraryFilename } from '../image-library';
+import { libraryImageNode } from '../image-library';
 import { Nodes, PhrasingContent, Definition } from 'mdast';
 import { visit } from 'unist-util-visit';
 import { MdxJsxAttributeValueExpression, mdxToMarkdown } from 'mdast-util-mdx';
@@ -440,16 +440,13 @@ function markdocNodeToProseMirrorNode(
         filename,
       });
     }
-    const libraryFile = libraryFilename(schema.config, fullFilename);
-    if (libraryFile && schema.nodes.image) {
-      return schema.nodes.image.createChecked({
-        src: new Uint8Array(),
-        alt: node.alt,
-        title: data.title,
-        filename: libraryFile,
-        fromLibrary: true,
-      });
-    }
+    const library = libraryImageNode(
+      schema,
+      fullFilename,
+      node.alt ?? undefined,
+      data.title
+    );
+    if (library) return library;
     return schema.schema.text(
       `![${node.alt || ''}](${data.url || ''}${
         data.title ? ` "${data.title}"` : ''
