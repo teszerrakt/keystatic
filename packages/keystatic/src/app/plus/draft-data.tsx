@@ -61,6 +61,7 @@ const DraftsQuery = gql`
             oid
             ... on Commit {
               committedDate
+              messageHeadline
               author {
                 user {
                   id
@@ -247,6 +248,7 @@ function useDraftList(head: string | undefined, branch: string) {
         refId: ref.id,
         author: commit?.author?.user?.login,
         savedAt: commit?.committedDate,
+        lastSave: commit?.messageHeadline,
         build: runState(hostRuns),
         checks: runState(runs),
         alias: fromCheck ?? previewAlias(ref.name),

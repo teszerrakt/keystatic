@@ -9,7 +9,7 @@ import { globeIcon } from '@keystar/ui/icon/icons/globeIcon';
 import { xIcon } from '@keystar/ui/icon/icons/xIcon';
 import { Box, Flex } from '@keystar/ui/layout';
 import { ProgressCircle } from '@keystar/ui/progress';
-import { css, tokenSchema } from '@keystar/ui/style';
+import { breakpointQueries, css, tokenSchema } from '@keystar/ui/style';
 import { Text } from '@keystar/ui/typography';
 
 import { useRouter } from '../router';
@@ -56,9 +56,19 @@ function Strip(props: {
         paddingInline: tokenSchema.size.space.xlarge,
       })}
     >
-      <Flex alignItems="center" gap="large" wrap minHeight="element.regular">
+      <div
+        className={css({
+          alignItems: 'center',
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: tokenSchema.size.space.large,
+          minHeight: tokenSchema.size.element.regular,
+          // With the sidebar open the bar stays one line: the name gives way.
+          [breakpointQueries.above.tablet]: { flexWrap: 'nowrap' },
+        })}
+      >
         {props.children}
-      </Flex>
+      </div>
       {props.footer}
     </div>
   );
@@ -106,9 +116,11 @@ function Steps(props: { children: ReactNode[] }) {
       className={css({
         alignItems: 'center',
         display: 'flex',
+        flexShrink: 0,
         flexWrap: 'wrap',
         gap: tokenSchema.size.space.regular,
         listStyle: 'none',
+        whiteSpace: 'nowrap',
         margin: 0,
         padding: 0,
       })}
@@ -133,9 +145,31 @@ function Steps(props: { children: ReactNode[] }) {
   );
 }
 
+function DraftName(props: { name: string }) {
+  return (
+    <span
+      title={props.name}
+      className={css({
+        color: tokenSchema.color.foreground.neutralEmphasis,
+        flex: '0 1 auto',
+        fontFamily: tokenSchema.typography.fontFamily.base,
+        fontSize: tokenSchema.typography.text.regular.size,
+        fontWeight: tokenSchema.typography.fontWeight.semibold,
+        maxWidth: 260,
+        minWidth: 80,
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+      })}
+    >
+      Draft: {props.name}
+    </span>
+  );
+}
+
 function Actions(props: { children: ReactNode }) {
   return (
-    <Flex gap="regular" marginStart="auto" wrap>
+    <Flex gap="regular" marginStart="auto" flexShrink={0}>
       {props.children}
     </Flex>
   );
@@ -150,6 +184,20 @@ function ExternalLabel(props: { children: ReactNode }) {
   );
 }
 
+// params: branch, <name>, then the page's own route.
+function liveHint(params: string[]) {
+  if (params.length === 2) {
+    return 'Continue a draft below, or edit any page to start a new one.';
+  }
+  if (
+    params[2] === 'pages' ||
+    (params[2] === 'collection' && params.length === 4)
+  ) {
+    return 'New pages and deletions also go into a draft first.';
+  }
+  return 'Edit any page and save it as a draft. Readers see nothing until you publish.';
+}
+
 export function DraftBar() {
   const drafts = useDraftsContext();
   const config = useConfig();
@@ -162,7 +210,7 @@ export function DraftBar() {
   if (drafts.saving && (drafts.onLive || drafts.saving.branch === branch)) {
     return (
       <Strip tone="accent">
-        <Text weight="semibold">Draft: {drafts.saving.title}</Text>
+        <DraftName name={drafts.saving.title} />
         <Steps>
           {[
             <Step key="saving" state="working">
@@ -211,15 +259,12 @@ export function DraftBar() {
           <Icon src={globeIcon} color="neutralSecondary" />
           <Text weight="semibold">You're looking at the live site.</Text>
         </Flex>
-        <Text color="neutralSecondary">
-          Edit any page and save it as a draft. Readers see nothing until you
-          publish.
-        </Text>
+        <Text color="neutralSecondary">{liveHint(router.params)}</Text>
       </Strip>
     );
   }
 
-  const title = <Text weight="semibold">Draft: {drafts.title(branch)}</Text>;
+  const title = <DraftName name={drafts.title(branch)} />;
   const saved = (
     <Step key="saved" state="done">
       {savedAgo(current?.savedAt, now)}
@@ -319,7 +364,7 @@ export function DraftBar() {
             </Step>
           ) : (
             <Step key="build" state="working">
-              Building preview · about a minute
+              Building preview · ~1 min
             </Step>
           ),
           <Step key="publish" state={ready ? 'next' : 'waiting'}>

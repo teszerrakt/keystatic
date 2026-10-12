@@ -27,7 +27,7 @@ import {
 
 const PAGE_FILE = /\.(md|mdoc|mdx)$/;
 
-function pageFile(tree: TreeData, dir: string, slug: string) {
+export function pageFile(tree: TreeData, dir: string, slug: string) {
   for (const path of tree.entries.keys()) {
     if (
       PAGE_FILE.test(path) &&

@@ -5,6 +5,8 @@ export type Draft = {
   refId: string;
   author: string | undefined;
   savedAt: string | undefined;
+  // Keystatic's commit headline, e.g. "Update src/content/docs/help/x".
+  lastSave?: string;
   build: Build;
   checks: Build;
   alias: string;

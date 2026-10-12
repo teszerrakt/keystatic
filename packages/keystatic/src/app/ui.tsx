@@ -43,7 +43,7 @@ import {
 import { KeystaticCloudAuthCallback } from './cloud-auth-callback';
 import { getAuth } from './auth';
 import { authPlugin } from './plus/auth';
-import { ReviewPage } from './plus/review-page';
+import { plusRoute } from './plus/routes';
 import { assertValidRepoConfig } from './repo-config';
 import { NotFoundBoundary, notFound } from './not-found';
 
@@ -51,8 +51,11 @@ function parseParamsWithoutBranch(params: string[]) {
   if (params.length === 0) {
     return {};
   }
-  if (params.length === 1 && params[0] === 'publish') {
-    return { plus: 'publish' as const };
+  if (
+    params.length === 1 &&
+    (params[0] === 'publish' || params[0] === 'pages')
+  ) {
+    return { plus: params[0] as 'publish' | 'pages' };
   }
   if (params.length === 2 && params[0] === 'singleton') {
     return { singleton: params[1] };
@@ -151,6 +154,7 @@ function PageInner({ config }: { config: Config }) {
     parsedParams = parseParamsWithoutBranch(params);
     basePath = '/keystatic';
   }
+  const plusPage = parsedParams && plusRoute(config, parsedParams);
   return wrapper(
     <AppShell config={config} currentBranch={branch || ''} basePath={basePath}>
       <NotFoundBoundary
@@ -168,8 +172,8 @@ function PageInner({ config }: { config: Config }) {
       >
         {parsedParams === null ? (
           <AlwaysNotFound />
-        ) : 'plus' in parsedParams ? (
-          <ReviewPage />
+        ) : plusPage ? (
+          plusPage
         ) : parsedParams.collection ? (
           parsedParams.kind === 'create' ? (
             <CreateItem
