@@ -785,11 +785,11 @@ function HeaderActions(props: {
       {props.saveButton ?? (
         <Button
           form={formID}
-          isDisabled={isLoading}
+          isDisabled={isLoading || (!!draftCopy && !hasChanged)}
           prominence="high"
           type="submit"
         >
-          {stringFormatter.format('save')}
+          {draftCopy?.save ?? stringFormatter.format('save')}
         </Button>
       )}
       <DialogContainer onDismiss={() => setDeleteAlertOpen(false)}>

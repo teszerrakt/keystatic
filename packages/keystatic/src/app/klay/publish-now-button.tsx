@@ -19,13 +19,18 @@ import {
 import { useConfig } from '../shell/context';
 import { useChanged, useTree } from '../shell/data';
 import { blobSha } from '../trees';
-import { entryFiles } from '../updating';
+import { serializeEntryToFiles } from '../updating';
 import { getSlugFromState } from '../utils';
 import { useDraftSaveCopy } from './drafts';
 import { usePageForm } from './page-form';
 import { pageTitleFrom } from './page-title';
-import { publishNowPlan, PublishNowPlan } from './publish-now';
-import { draftChanges, FileChange, PICTURE } from './review';
+import {
+  draftChanges,
+  PICTURE,
+  publishNowPlan,
+  PublishNowPlan,
+} from './publish-now';
+import { FileChange } from './review';
 import { useLanguageOf } from './review-data';
 
 type Page = {
@@ -49,14 +54,16 @@ function usePlanPublishNow(page: Page) {
     const { current, default: live } = trees.merged.data;
     const collection = config.collections![page.collection];
     const slug = getSlugFromState(collection, page.state);
-    const [own, ...others] = entryFiles({
-      basePath: getCollectionItemPath(config, page.collection, slug),
-      format: getCollectionFormat(config, page.collection),
-      schema: collection.schema,
-      state: page.state,
-      slug: { field: collection.slugField, value: slug },
-      extras,
-    });
+    const [own, ...others] = [
+      ...serializeEntryToFiles({
+        basePath: getCollectionItemPath(config, page.collection, slug),
+        format: getCollectionFormat(config, page.collection),
+        schema: collection.schema,
+        state: page.state,
+        slug: { field: collection.slugField, value: slug },
+      }),
+      ...(extras?.files() ?? []),
+    ];
     const saving: FileChange[] = [];
     for (const f of others) {
       const liveSha = live.entries.get(f.path)?.sha;

@@ -1,10 +1,12 @@
 import {
   ChangeKind,
+  diffEntries,
   FileChange,
   humanize,
   PageChange,
-  PICTURE,
 } from './review';
+
+export const PICTURE = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 
 // Read back from the pull request body.
 export const publishNowNote =
@@ -19,6 +21,35 @@ export type PublishNowPlan = {
   page: ChangeKind;
   pictures: { path: string; title: string; kind: ChangeKind }[];
 };
+
+type Entry = { sha: string; type?: string };
+type Changed = Map<
+  string,
+  { added: Set<string>; changed: Set<string>; removed: Set<string> }
+>;
+
+// `dirs` are the collection folders: files there are pages, not files.
+export function draftChanges(input: {
+  collections: Changed;
+  current: Map<string, Entry>;
+  base: Map<string, Entry>;
+  dirs: string[];
+}) {
+  const pages: PageChange[] = [];
+  for (const [collection, c] of input.collections) {
+    for (const slug of c.added) pages.push({ collection, slug, kind: 'added' });
+    for (const slug of c.changed) {
+      pages.push({ collection, slug, kind: 'changed' });
+    }
+    for (const slug of c.removed) {
+      pages.push({ collection, slug, kind: 'removed' });
+    }
+  }
+  const files = diffEntries(input.current, input.base).filter(
+    f => !input.dirs.some(d => f.path.startsWith(`${d}/`))
+  );
+  return { pages, files };
+}
 
 const fileName = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 

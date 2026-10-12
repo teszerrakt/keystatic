@@ -14,12 +14,13 @@ import {
 import { fetchBlob } from '../useItemData';
 import { getEntriesInCollectionWithTreeKey } from '../utils';
 import {
-  draftChanges,
+  diffEntries,
   findProblems,
   frontmatterTitle,
   groupChanges,
   Group,
   humanize,
+  PageChange,
   PageText,
   Problem,
 } from './review';
@@ -95,12 +96,23 @@ export function useDraftReview(): DraftReview {
     const head = branches.get(branch)?.commitSha ?? '';
     const baseHead = branches.get(repoInfo.defaultBranch)?.commitSha ?? '';
     const collections = Object.keys(config.collections ?? {});
-    const { pages, files } = draftChanges({
-      collections: changed.collections,
-      current: current.entries,
-      base: base.entries,
-      dirs: collections.map(c => getCollectionPath(config, c)),
-    });
+    const dirs = collections.map(c => getCollectionPath(config, c));
+
+    const pages: PageChange[] = [];
+    for (const [collection, c] of changed.collections) {
+      for (const slug of c.added) {
+        pages.push({ collection, slug, kind: 'added' });
+      }
+      for (const slug of c.changed) {
+        pages.push({ collection, slug, kind: 'changed' });
+      }
+      for (const slug of c.removed) {
+        pages.push({ collection, slug, kind: 'removed' });
+      }
+    }
+    const files = diffEntries(current.entries, base.entries).filter(
+      f => !dirs.some(d => f.path.startsWith(`${d}/`))
+    );
 
     // Every page in the draft, with its address when it has one.
     const all = collections.flatMap(collection => {

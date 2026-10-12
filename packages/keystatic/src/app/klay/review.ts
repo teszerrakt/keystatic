@@ -17,7 +17,7 @@ export type Group = {
   rows: Row[];
 };
 
-export const PICTURE = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
+const PICTURE = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
 
 export function humanize(name: string) {
   const words = name
@@ -46,34 +46,6 @@ export function diffEntries(
     if (!current.has(path)) out.push({ path, kind: 'removed' });
   }
   return out.sort((a, b) => a.path.localeCompare(b.path));
-}
-
-type Changed = Map<
-  string,
-  { added: Set<string>; changed: Set<string>; removed: Set<string> }
->;
-
-// `dirs` are the collection folders: files there are pages, not files.
-export function draftChanges(input: {
-  collections: Changed;
-  current: Map<string, Entry>;
-  base: Map<string, Entry>;
-  dirs: string[];
-}) {
-  const pages: PageChange[] = [];
-  for (const [collection, c] of input.collections) {
-    for (const slug of c.added) pages.push({ collection, slug, kind: 'added' });
-    for (const slug of c.changed) {
-      pages.push({ collection, slug, kind: 'changed' });
-    }
-    for (const slug of c.removed) {
-      pages.push({ collection, slug, kind: 'removed' });
-    }
-  }
-  const files = diffEntries(input.current, input.base).filter(
-    f => !input.dirs.some(d => f.path.startsWith(`${d}/`))
-  );
-  return { pages, files };
 }
 
 const plural = (n: number, one: string, many = `${one}s`) =>

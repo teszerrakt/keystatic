@@ -303,8 +303,12 @@ function useDraftList(head: string | undefined, branch: string) {
     return () => clearInterval(id);
   }, [busy, missing, refetch]);
 
-  // Resolves once the list holds GitHub's answer.
   const refresh = useCallback(
+    () => refetch({ requestPolicy: 'network-only' }),
+    [refetch]
+  );
+  // Resolves once the list holds GitHub's answer.
+  const reload = useCallback(
     () =>
       client
         .query(
@@ -315,7 +319,7 @@ function useDraftList(head: string | undefined, branch: string) {
         .toPromise(),
     [client, owner, name, prefix]
   );
-  return { drafts, published, missing, refresh };
+  return { drafts, published, missing, refresh, reload };
 }
 
 type PublishState =
@@ -326,7 +330,7 @@ type PublishState =
 
 type Publishable = { name: string; pr?: Draft['pr'] };
 
-function usePublish(onDone: () => Promise<unknown>) {
+function usePublish(onDone: () => void, reload: () => Promise<unknown>) {
   const client = useClient();
   const viewer = useViewer();
   const repoInfo = useRepoInfo();
@@ -413,23 +417,27 @@ function usePublish(onDone: () => Promise<unknown>) {
           .toPromise();
         if (merged.error) throw merged.error;
       }
-      // Working until the list shows the queued pull request, so the bar
-      // never drops back to the preview steps in between.
-      await onDone();
+      // Publish now stays working until the list shows the queued pull
+      // request, so its bar never drops back to the preview steps.
+      if (now) await reload().catch(() => {});
       setState({ kind: queued.error ? 'done' : 'idle' });
+      if (!now) onDone();
     } catch (e) {
-      setState({ kind: 'error', message: explain((e as Error).message) });
+      setState({
+        kind: 'error',
+        message: explain((e as Error).message, now),
+      });
     }
   }
   return [state, publish, () => setState({ kind: 'idle' })] as const;
 }
 
-function explain(message: string) {
+function explain(message: string, now = false) {
   const m = message.replace(/^\[GraphQL\] /, '');
   if (/auto-merge is not allowed|not enabled for this repository/i.test(m)) {
     return 'Publishing is switched off for this repository. Ask an admin to allow auto-merge in its GitHub settings.';
   }
-  if (/is in (clean|unstable) status/i.test(m)) {
+  if (now && /is in (clean|unstable) status/i.test(m)) {
     return 'This site has no check for Publish now to wait for. Use Publish… in the bar above.';
   }
   if (/no commits between/i.test(m)) {
@@ -533,7 +541,10 @@ function DraftsProviderInner(props: { children: ReactNode }) {
   const client = useClient();
   const list = useDraftList(head, branch);
   const current = list.drafts.find(d => d.name === branch);
-  const [publishState, publish, resetPublish] = usePublish(list.refresh);
+  const [publishState, publish, resetPublish] = usePublish(
+    list.refresh,
+    list.reload
+  );
   const latest = useRef(list.drafts);
   latest.current = list.drafts;
   const [saving, setSaving] = useState<Saving | null>(null);

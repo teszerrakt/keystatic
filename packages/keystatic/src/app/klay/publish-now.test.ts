@@ -1,6 +1,11 @@
 /** @vitest-environment node */
 import { expect, test } from 'vitest';
-import { isPublishNow, publishNowNote, publishNowPlan } from './publish-now';
+import {
+  draftChanges,
+  isPublishNow,
+  publishNowNote,
+  publishNowPlan,
+} from './publish-now';
 
 const page = { collection: 'docsEn', slug: 'about-us' };
 const base = {
@@ -128,4 +133,32 @@ test('a draft picture the save drops is no longer a change', () => {
   });
   expect(plan.allowed).toBe(true);
   expect(plan.pictures.map(p => p.title)).toEqual(['New']);
+});
+
+test('draft changes split pages from the files outside page folders', () => {
+  const changes = draftChanges({
+    collections: new Map([
+      [
+        'docsEn',
+        {
+          added: new Set(['new']),
+          changed: new Set(['old']),
+          removed: new Set<string>(),
+        },
+      ],
+    ]),
+    current: new Map([
+      ['src/content/docs/help/new.md', { sha: '1' }],
+      ['src/assets/images/docs/a.png', { sha: '2' }],
+    ]),
+    base: new Map(),
+    dirs: ['src/content/docs/help'],
+  });
+  expect(changes.pages).toEqual([
+    { collection: 'docsEn', slug: 'new', kind: 'added' },
+    { collection: 'docsEn', slug: 'old', kind: 'changed' },
+  ]);
+  expect(changes.files).toEqual([
+    { path: 'src/assets/images/docs/a.png', kind: 'added' },
+  ]);
 });
