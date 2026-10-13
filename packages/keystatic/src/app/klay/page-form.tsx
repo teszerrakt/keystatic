@@ -22,7 +22,7 @@ export type CommitExtras = {
   kept(path: string): boolean;
 };
 
-export function createExtras(): CommitExtras {
+function createExtras(): CommitExtras {
   const parts = new Map<string, () => ExtraFile[]>();
   let keep: ((path: string) => boolean) | null = null;
   return {
