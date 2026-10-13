@@ -1,7 +1,7 @@
 <!-- prettier-ignore-start -->
 # Keystatic Plus
 
-A fork of [Keystatic](https://github.com/Thinkmill/keystatic), the git-based CMS by Thinkmill, that adds an editor for writers. Keystatic's core is Thinkmill's work; plus builds on it and tracks its releases.
+A fork of [Keystatic](https://github.com/Thinkmill/keystatic), the git-based CMS by Thinkmill, that adds an editor for writers. Keystatic's core is Thinkmill's work; Plus builds on it and tracks its releases.
 
 **Latest:** [`0.6.9-plus.1.0.0`](https://github.com/teszerrakt/keystatic/releases/tag/v0.6.9-plus.1.0.0), on Keystatic 0.6.9 · [Sandbox site](https://keystatic-plus-sandbox.vercel.app) ([source](https://github.com/teszerrakt/keystatic-plus-sandbox))
 
@@ -15,9 +15,9 @@ The `npm:` alias keeps every `@keystatic/core` import and integration (`@keystat
 
 With pnpm's `minimumReleaseAge`, add both packages to `minimumReleaseAgeExclude` so a new release installs the day it ships.
 
-Everything in [Keystatic's docs](https://keystatic.com/docs/introduction) still applies. The sections below cover what plus adds.
+Everything in [Keystatic's docs](https://keystatic.com/docs/introduction) still applies. The sections below cover what Plus adds.
 
-## What plus adds
+## What Plus adds
 
 These apply to GitHub storage. Local storage keeps Keystatic's own editor.
 
@@ -100,7 +100,7 @@ storage: {
 
 ## Versions
 
-Versions read `<upstream version>-plus.<major>.<minor>.<patch>`. The base is the Keystatic release plus is built on; the plus part follows semver for the fork's own changes, so a breaking plus change bumps its major. Each release's notes are on [GitHub Releases](https://github.com/teszerrakt/keystatic/releases).
+Versions read `<upstream version>-plus.<major>.<minor>.<patch>`. The base is the Keystatic release Plus is built on; the part after `-plus.` follows semver for the fork's own changes, so a breaking Plus change bumps its major. Each release's notes are on [GitHub Releases](https://github.com/teszerrakt/keystatic/releases).
 
 ## Developing
 
