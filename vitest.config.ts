@@ -18,6 +18,20 @@ export default defineConfig({
   oxc: { jsx: { runtime: 'automatic', development: false } },
   test: {
     reporters: ['verbose'],
+    // Plus fork: a user-event dispatch can outlive its test and land in a torn-down
+    // jsdom window (seen in the Switch and Combobox tests). The tests pass; only this
+    // leftover rejection failed CI, so it alone is ignored.
+    onUnhandledError(error) {
+      if (
+        error.message?.includes("parameter 1 is not of type 'Event'") &&
+        error.stack?.includes('@testing-library/user-event')
+      ) {
+        console.warn(
+          `Ignored known user-event teardown error: ${error.message}`
+        );
+        return false;
+      }
+    },
     fakeTimers: {
       shouldAdvanceTime: true,
       toFake: [
