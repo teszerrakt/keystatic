@@ -18,7 +18,8 @@ export const isPublishNow = (body: string | null | undefined) =>
 export type PublishNowPlan = {
   // False when the draft changes more than this page and its pictures (D2).
   allowed: boolean;
-  page: ChangeKind;
+  // This page, then its other language versions the draft changes.
+  pages: { collection: string; kind: ChangeKind }[];
   pictures: { path: string; title: string; kind: ChangeKind }[];
 };
 
@@ -55,6 +56,8 @@ const fileName = (path: string) => path.slice(path.lastIndexOf('/') + 1);
 
 export function publishNowPlan(input: {
   page: { collection: string; slug: string };
+  // Collections that hold one page's language versions under one slug.
+  languages: string[];
   // What the open draft already changes against the live site.
   pages: PageChange[];
   files: FileChange[];
@@ -65,8 +68,16 @@ export function publishNowPlan(input: {
   dropped: string[];
   pageText: string;
 }): PublishNowPlan {
+  const { collection, slug } = input.page;
+  const versions = input.languages.includes(collection)
+    ? input.languages
+    : [collection];
+  // Ruled by the user: a page's other languages are the same page.
   const isPage = (p: PageChange) =>
-    p.collection === input.page.collection && p.slug === input.page.slug;
+    p.slug === slug && versions.includes(p.collection);
+  const own = input.pages.find(
+    p => p.collection === collection && p.slug === slug
+  );
 
   const changed = new Map(input.files.map(f => [f.path, f.kind]));
   for (const path of input.dropped) changed.delete(path);
@@ -85,7 +96,12 @@ export function publishNowPlan(input: {
 
   return {
     allowed,
-    page: input.pages.find(isPage)?.kind === 'added' ? 'added' : 'changed',
+    pages: [
+      { collection, kind: own?.kind === 'added' ? 'added' : 'changed' },
+      ...input.pages
+        .filter(p => isPage(p) && p.collection !== collection)
+        .map(p => ({ collection: p.collection, kind: p.kind })),
+    ],
     pictures: [...changed]
       .filter(([path]) => PICTURE.test(path))
       .map(([path, kind]) => ({ path, title: humanize(fileName(path)), kind })),

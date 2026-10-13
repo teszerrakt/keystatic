@@ -31,6 +31,7 @@ import {
   PublishNowPlan,
 } from './publish-now';
 import { FileChange } from './review';
+import { useLanguages } from './pages-data';
 import { useLanguageOf } from './review-data';
 
 type Page = {
@@ -47,9 +48,10 @@ function usePlanPublishNow(page: Page) {
   const trees = useTree();
   const changed = useChanged();
   const extras = usePageForm()?.extras;
+  const languages = useLanguages();
   return async (): Promise<PublishNowPlan> => {
     if (trees.merged.kind !== 'loaded') {
-      return { allowed: false, page: 'changed', pictures: [] };
+      return { allowed: false, pages: [], pictures: [] };
     }
     const { current, default: live } = trees.merged.data;
     const collection = config.collections![page.collection];
@@ -82,6 +84,7 @@ function usePlanPublishNow(page: Page) {
     }
     return publishNowPlan({
       page,
+      languages: languages.map(l => l.collection),
       ...draftChanges({
         collections: changed.collections,
         current: current.entries,
@@ -118,7 +121,7 @@ const row = css({
 
 function Row(props: {
   badge: string;
-  tone?: 'accent' | 'caution';
+  tone?: 'accent' | 'caution' | 'critical';
   title: string;
   detail: string;
 }) {
@@ -134,6 +137,12 @@ function Row(props: {
     </div>
   );
 }
+
+const pageBadge = {
+  added: { label: 'New', tone: 'accent' },
+  changed: { label: 'Edited', tone: 'caution' },
+  removed: { label: 'Deleted', tone: 'critical' },
+} as const;
 
 const pictureBadge = {
   added: 'New picture',
@@ -216,12 +225,15 @@ export function SaveSplitButton(props: {
                 live.
               </Text>
               <div className={list}>
-                <Row
-                  badge={plan.page === 'added' ? 'New' : 'Edited'}
-                  tone={plan.page === 'added' ? 'accent' : 'caution'}
-                  title={title}
-                  detail={language(props.page.collection)}
-                />
+                {plan.pages.map(p => (
+                  <Row
+                    key={p.collection}
+                    badge={pageBadge[p.kind].label}
+                    tone={pageBadge[p.kind].tone}
+                    title={title}
+                    detail={language(p.collection)}
+                  />
+                ))}
                 {plan.pictures.map(p => (
                   <Row
                     key={p.path}

@@ -10,6 +10,7 @@ import {
 const page = { collection: 'docsEn', slug: 'about-us' };
 const base = {
   page,
+  languages: ['docsEn', 'docsId'],
   pages: [],
   files: [],
   saving: [],
@@ -20,7 +21,7 @@ const base = {
 test('an edit on the live site publishes just the page', () => {
   expect(publishNowPlan(base)).toEqual({
     allowed: true,
-    page: 'changed',
+    pages: [{ collection: 'docsEn', kind: 'changed' }],
     pictures: [],
   });
 });
@@ -66,7 +67,7 @@ test('a draft with only this page, new, and a picture it uses is allowed', () =>
     pageText: '![Map](../../assets/images/docs/map.webp)',
   });
   expect(plan.allowed).toBe(true);
-  expect(plan.page).toBe('added');
+  expect(plan.pages).toEqual([{ collection: 'docsEn', kind: 'added' }]);
   expect(plan.pictures.map(p => p.title)).toEqual(['Map']);
 });
 
@@ -81,10 +82,25 @@ test('a draft that changes another page is blocked', () => {
   expect(plan.allowed).toBe(false);
 });
 
-test('the same page in another language counts as another page', () => {
+test('the same page in another language is the same page', () => {
   const plan = publishNowPlan({
     ...base,
-    pages: [{ collection: 'docsId', slug: 'about-us', kind: 'added' }],
+    pages: [
+      { ...page, kind: 'changed' },
+      { collection: 'docsId', slug: 'about-us', kind: 'added' },
+    ],
+  });
+  expect(plan.allowed).toBe(true);
+  expect(plan.pages).toEqual([
+    { collection: 'docsEn', kind: 'changed' },
+    { collection: 'docsId', kind: 'added' },
+  ]);
+});
+
+test('another page in another language still blocks', () => {
+  const plan = publishNowPlan({
+    ...base,
+    pages: [{ collection: 'docsId', slug: 'pricing', kind: 'changed' }],
   });
   expect(plan.allowed).toBe(false);
 });
