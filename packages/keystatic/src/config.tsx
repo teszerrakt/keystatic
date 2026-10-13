@@ -5,6 +5,7 @@ import { ComponentSchema, FormField, SlugFormField } from './form/api';
 import type { Locale } from './app/l10n/locales';
 import { RepoConfig } from './app/repo-config';
 import type { AuthPlugin } from './app/plus/auth';
+import type { PreviewPlugin } from './app/plus/preview';
 
 // Common
 // ----------------------------------------------------------------------------
@@ -56,6 +57,8 @@ type CommonRemoteStorageConfig = {
   drafts?: boolean;
   /** Plus fork: a draft's preview site. `{alias}` becomes the branch as the host names its preview (`draft/a` → `draft-a`). */
   draftPreviewUrl?: string;
+  /** Plus fork: reads a draft's preview build from GitHub. Defaults to `autoPreview()`: Cloudflare Workers Builds check runs, else GitHub deployments (Vercel, Netlify). */
+  preview?: PreviewPlugin;
   /** Plus fork: the live site, e.g. `https://docs.example.com`. Links a published page. */
   siteUrl?: string;
   /** Plus fork: where a publish is announced, e.g. `#docs-updates`. Shown after publishing. */

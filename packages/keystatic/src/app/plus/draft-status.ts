@@ -10,6 +10,8 @@ export type Draft = {
   build: Build;
   checks: Build;
   alias: string;
+  /** The preview's own address, when the host reports one. */
+  previewUrl?: string;
   failureUrl: string | undefined;
   pr:
     | { id: string; number: number; queued: boolean; now?: boolean }
