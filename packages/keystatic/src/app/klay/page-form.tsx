@@ -96,7 +96,7 @@ export function PageFormProvider(props: {
         setSections,
       }}
     >
-      <ImageLibraryProvider extras={extras}>
+      <ImageLibraryProvider extras={extras} state={props.state}>
         {props.children}
       </ImageLibraryProvider>
     </PageFormContext.Provider>

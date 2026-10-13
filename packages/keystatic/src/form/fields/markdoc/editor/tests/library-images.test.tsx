@@ -1,12 +1,17 @@
 /** @vitest-environment jsdom */
 import { expect, test } from 'vitest';
 import { Node } from 'prosemirror-model';
+import { EditorState } from 'prosemirror-state';
 import { format, parse } from '#markdoc';
 import { markdocToProseMirror } from '../markdoc/parse';
 import { proseMirrorToMarkdoc } from '../markdoc/serialize';
 import { createEditorSchema } from '../schema';
 import { editorOptionsToConfig } from '../../config';
-import { chosenFileAttrs, libraryImageAttrs } from '../image-library';
+import {
+  chosenFileAttrs,
+  libraryFilesIn,
+  libraryImageAttrs,
+} from '../image-library';
 
 const dir = 'src/assets/images/docs';
 const schema = createEditorSchema(
@@ -149,4 +154,22 @@ test('without a library provider, a chosen file turns a reference into a page pi
       { name: 'new.png', bytes }
     )
   ).toEqual({ src: bytes });
+});
+
+test('a save sees which library pictures the page still shows', () => {
+  const doc = load(
+    [
+      '![Own](../../../assets/images/docs/page/own.png)',
+      '',
+      '![Hero](../../../assets/images/docs/shared/hero.png)',
+    ].join('\n'),
+    'page'
+  );
+  const state = { title: 'x', content: EditorState.create({ doc }) };
+  expect([...libraryFilesIn(state)]).toEqual(['shared/hero.png']);
+  expect([
+    ...libraryFilesIn({
+      content: EditorState.create({ schema: schema.schema }),
+    }),
+  ]).toEqual([]);
 });

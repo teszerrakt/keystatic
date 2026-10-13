@@ -3,6 +3,7 @@ import { expect, test } from 'vitest';
 import {
   clashMessage,
   formatSize,
+  imageChanges,
   freePath,
   imageUsage,
   libraryImages,
@@ -17,7 +18,7 @@ import {
 
 const dir = 'src/assets/images/docs';
 
-test('the library lists pictures under the directory; added ones are new', () => {
+test('the library lists pictures with what the draft did; removed ones leave', () => {
   const current = new Map([
     [`${dir}/shared`, { sha: 't', type: 'tree' }],
     [`${dir}/shared/new.png`, { sha: '1' }],
@@ -34,7 +35,7 @@ test('the library lists pictures under the directory; added ones are new', () =>
   expect(libraryImages(dir, current, base).map(i => [i.path, i.draft])).toEqual(
     [
       [`${dir}/shared/new.png`, 'new'],
-      [`${dir}/create-a-bill/1.webp`, undefined],
+      [`${dir}/create-a-bill/1.webp`, 'replaced'],
       [`${dir}/create-a-bill/2.webp`, undefined],
     ]
   );
@@ -155,4 +156,18 @@ test('a picture with parentheses in its name is counted as used', () => {
   expect([...imageUsage([page]).keys()]).toEqual([
     `${dir}/shared/My Photo (1).JPG`,
   ]);
+});
+
+test('the sidebar counts what the Changed view lists', () => {
+  const current = new Map([
+    [`${dir}/shared/new.png`, { sha: '1' }],
+    [`${dir}/shared/hero.png`, { sha: '2b' }],
+  ]);
+  const base = new Map([
+    [`${dir}/shared/hero.png`, { sha: '2' }],
+    [`${dir}/shared/old.png`, { sha: '3' }],
+  ]);
+  const changed = libraryImages(dir, current, base).filter(i => i.draft);
+  expect(imageChanges(dir, current, base)).toHaveLength(changed.length);
+  expect(changed.map(i => i.name)).toEqual(['new.png', 'hero.png']);
 });

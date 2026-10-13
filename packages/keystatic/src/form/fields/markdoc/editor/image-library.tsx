@@ -1,4 +1,5 @@
 import type { Node } from 'prosemirror-model';
+import { EditorState } from 'prosemirror-state';
 import { EditorView } from 'prosemirror-view';
 import { createContext, useContext } from 'react';
 
@@ -64,6 +65,20 @@ export function libraryImageNode(
 export function librarySrc(config: EditorConfig, node: Node) {
   if (!node.attrs.fromLibrary) return;
   return encodeURI(`${srcBase(config)}${node.attrs.filename}`);
+}
+
+// The `filename`s of library pictures in any editor state inside a form value.
+export function libraryFilesIn(value: unknown, found = new Set<string>()) {
+  if (value instanceof EditorState) {
+    value.doc.descendants(node => {
+      if (node.attrs.fromLibrary) found.add(node.attrs.filename);
+    });
+  } else if (Array.isArray(value)) {
+    for (const item of value) libraryFilesIn(item, found);
+  } else if (value && typeof value === 'object') {
+    for (const item of Object.values(value)) libraryFilesIn(item, found);
+  }
+  return found;
 }
 
 export function libraryImagePath(config: EditorConfig, filename: string) {

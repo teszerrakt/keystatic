@@ -42,8 +42,8 @@ export type LibraryImage = {
   path: string;
   name: string;
   sha: string;
-  // Added in this draft
-  draft: 'new' | undefined;
+  // Added or replaced in this draft
+  draft: 'new' | 'replaced' | undefined;
 };
 
 type Entry = { sha: string; type?: string };
@@ -51,25 +51,26 @@ type Entry = { sha: string; type?: string };
 const isImageIn = (dir: string, path: string) =>
   path.startsWith(`${dir}/`) && PICTURE.test(path);
 
-// Pictures under `dir` that a draft adds, replaces or removes.
+// Pictures under `dir` that a draft adds or replaces; removed ones leave
+// the list and the count.
 export function imageChanges(
   dir: string,
   current: Map<string, Entry>,
   base: Map<string, Entry>
 ) {
-  return diffEntries(current, base).filter(c => isImageIn(dir, c.path));
+  return diffEntries(current, base).filter(
+    c => c.kind !== 'removed' && isImageIn(dir, c.path)
+  );
 }
 
-// Every picture under `dir`; with `base`, those this draft adds are new.
+// Every picture under `dir`; with `base`, with what this draft did to it.
 export function libraryImages(
   dir: string,
   current: Map<string, Entry>,
   base?: Map<string, Entry>
 ): LibraryImage[] {
-  const added = new Set(
-    (base ? imageChanges(dir, current, base) : [])
-      .filter(c => c.kind === 'added')
-      .map(c => c.path)
+  const changes = new Map(
+    (base ? imageChanges(dir, current, base) : []).map(c => [c.path, c.kind])
   );
   return [...current]
     .filter(([path, e]) => e.type !== 'tree' && isImageIn(dir, path))
@@ -78,12 +79,17 @@ export function libraryImages(
         path,
         name: baseName(path),
         sha: e.sha,
-        draft: added.has(path) ? 'new' : undefined,
+        draft: changes.has(path)
+          ? changes.get(path) === 'added'
+            ? 'new'
+            : 'replaced'
+          : undefined,
       })
     )
     .sort(
       (a, b) =>
-        Number(!a.draft) - Number(!b.draft) || a.name.localeCompare(b.name)
+        Number(a.draft !== 'new') - Number(b.draft !== 'new') ||
+        a.name.localeCompare(b.name)
     );
 }
 

@@ -177,7 +177,7 @@ export function ImageCard(props: {
           >
             {props.usage}
           </Text>
-          {image.draft && !props.compact && (
+          {image.draft === 'new' && !props.compact && (
             <Badge tone="accent" marginStart="auto">
               New picture
             </Badge>

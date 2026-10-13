@@ -20,6 +20,7 @@ import { Heading, Text } from '@keystar/ui/typography';
 import {
   ImageLibrary,
   ImageLibraryContext,
+  libraryFilesIn,
   PickedImage,
 } from '../../form/fields/markdoc/editor/image-library';
 import { useEventCallback } from '../../form/fields/markdoc/editor/utils';
@@ -63,12 +64,14 @@ type PickOptions = Parameters<ImageLibrary['pick']>[0];
 
 export function ImageLibraryProvider(props: {
   extras: CommitExtras;
+  // The page's form state: a save writes only uploads it still shows.
+  state: Record<string, unknown>;
   children: ReactNode;
 }) {
   const dir = useImageDirectory();
   // Any storage mode: the field's `library` option alone makes references.
   return dir ? (
-    <LibraryProvider dir={dir} extras={props.extras}>
+    <LibraryProvider dir={dir} extras={props.extras} state={props.state}>
       {props.children}
     </LibraryProvider>
   ) : (
@@ -81,6 +84,7 @@ export function ImageLibraryProvider(props: {
 function LibraryProvider(props: {
   dir: string;
   extras: CommitExtras;
+  state: Record<string, unknown>;
   children: ReactNode;
 }) {
   const config = useConfig();
@@ -92,7 +96,7 @@ function LibraryProvider(props: {
   const [request, setRequest] = useState<
     (PickOptions & { resolve: (image: PickedImage | null) => void }) | null
   >(null);
-  const { extras, dir } = props;
+  const { extras, dir, state } = props;
   const current =
     trees.current.kind === 'loaded' ? trees.current.data.entries : null;
   const head = branches.get(branch)?.commitSha ?? '';
@@ -106,13 +110,17 @@ function LibraryProvider(props: {
     return () => extras.keep(null);
   }, [extras, dir]);
 
+  // An upload whose image was removed, or undone by Reset, is not written.
   useEffect(() => {
     if (!staged.length) return;
-    extras.set('images', () =>
-      staged.map(s => ({ path: s.path, contents: s.bytes }))
-    );
+    extras.set('images', () => {
+      const shown = libraryFilesIn(state);
+      return staged
+        .filter(s => shown.has(s.path.slice(dir.length + 1)))
+        .map(s => ({ path: s.path, contents: s.bytes }));
+    });
     return () => extras.set('images', null);
-  }, [staged, extras]);
+  }, [staged, extras, state, dir]);
 
   const add = (next: Staged) =>
     setStaged(prev => [...prev.filter(s => s.path !== next.path), next]);
@@ -179,7 +187,8 @@ const pickerGrid = css({
 function Details(props: {
   image: LibraryImage;
   bytes: Uint8Array | undefined;
-  alt: string;
+  // undefined until the default alt texts are read
+  alt: string | undefined;
   caption: string;
   onAlt: (alt: string) => void;
   onCaption: (caption: string) => void;
@@ -200,8 +209,9 @@ function Details(props: {
         label="Alt text"
         placeholder="Describe the image"
         description="Starts from the image's default. Changes apply to this page only."
-        value={props.alt}
+        value={props.alt ?? ''}
         onChange={props.onAlt}
+        isDisabled={props.alt === undefined}
       />
       <TextField
         label="Caption (optional)"
@@ -229,45 +239,53 @@ function ImagePicker(
   const [tab, setTab] = useState<'library' | 'upload'>('library');
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(props.current?.path ?? null);
-  const [alt, setAlt] = useState(props.current?.alt ?? '');
+  // null until the writer types: the default shows, even if it loads late.
+  const [typedAlt, setAlt] = useState<string | null>(null);
   const [caption, setCaption] = useState(props.current?.title ?? '');
   const [upload, setUpload] = useState<Upload | null>(null);
+  // Staged for the page's save only once it is inserted.
+  const [pending, setPending] = useState<Staged | null>(null);
   const loaded = library.kind === 'loaded' ? library : null;
+  const waitingFiles = [
+    ...staged.filter(s => s.path !== pending?.path),
+    ...(pending ? [pending] : []),
+  ];
 
-  const images = useMemo(() => {
-    const inTree = (loaded?.images ?? []).filter(i =>
-      i.path.startsWith(`${props.directory}/`)
-    );
-    const waiting: LibraryImage[] = staged
-      .filter(s => !inTree.some(i => i.path === s.path))
-      .map(s => ({
-        path: s.path,
-        name: baseName(s.path),
+  const inTree = (loaded?.images ?? []).filter(i =>
+    i.path.startsWith(`${props.directory}/`)
+  );
+  const images: LibraryImage[] = [
+    ...waitingFiles
+      .filter(w => !inTree.some(i => i.path === w.path))
+      .map(w => ({
+        path: w.path,
+        name: baseName(w.path),
         sha: '',
-        draft: 'new',
-      }));
-    return [...waiting, ...inTree];
-  }, [loaded, staged, props.directory]);
+        draft: 'new' as const,
+      })),
+    ...inTree,
+  ];
   const q = search.trim().toLowerCase();
   const visible = images.filter(i => !q || i.name.toLowerCase().includes(q));
   const image = images.find(i => i.path === selected);
   const stagedBytes = (path: string) =>
-    staged.find(s => s.path === path)?.bytes;
+    waitingFiles.find(s => s.path === path)?.bytes;
+  const alt =
+    typedAlt ??
+    (selected === props.current?.path
+      ? props.current?.alt
+      : selected && loaded?.alts?.[altKey(props.directory, selected)]) ??
+    (loaded?.alts ? '' : undefined);
   const { bytes } = usePreview(image, image && stagedBytes(image.path));
 
   const pick = (path: string) => {
     setSelected(path);
-    if (path === props.current?.path) {
-      setAlt(props.current.alt);
-      setCaption(props.current.title);
-    } else {
-      setAlt(loaded?.alts?.[altKey(props.directory, path)] ?? '');
-      setCaption('');
-    }
+    setAlt(null);
+    setCaption(path === props.current?.path ? props.current.title : '');
   };
 
   const accept = (u: Upload, path: string) => {
-    add({ path, bytes: u.bytes });
+    setPending({ path, bytes: u.bytes });
     setUpload(null);
     setTab('library');
     setSearch('');
@@ -422,9 +440,12 @@ function ImagePicker(
         <Button onPress={dialog.dismiss}>Cancel</Button>
         <Button
           prominence="high"
-          isDisabled={tab !== 'library' || !image || !bytes}
+          isDisabled={
+            tab !== 'library' || !image || !bytes || alt === undefined
+          }
           onPress={() => {
-            if (!image || !bytes) return;
+            if (!image || !bytes || alt === undefined) return;
+            if (pending?.path === image.path) add(pending);
             props.onPick({
               path: image.path,
               bytes,
