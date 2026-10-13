@@ -1,4 +1,15 @@
 <!-- prettier-ignore-start -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/plus-banner-dark.svg">
+  <img src=".github/plus-banner-light.svg" alt="Keystatic Plus: an editor for writers, built on Keystatic">
+</picture>
+
+<p>
+  <a href="https://www.npmjs.com/package/@teszerrakt/keystatic-core"><img alt="npm version" src="https://img.shields.io/npm/v/@teszerrakt/keystatic-core?label=npm&color=2F4AD0"></a>
+  <a href="https://github.com/teszerrakt/keystatic/releases"><img alt="latest release" src="https://img.shields.io/github/v/release/teszerrakt/keystatic?label=release&color=2F4AD0"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2F4AD0"></a>
+</p>
+
 # Keystatic Plus
 
 A fork of [Keystatic](https://github.com/Thinkmill/keystatic), the git-based CMS by Thinkmill, that adds an editor for writers. Keystatic's core is Thinkmill's work; Plus builds on it and tracks its releases.

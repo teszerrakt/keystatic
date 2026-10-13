@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 830 265" role="img" aria-label="Keystatic Plus">
+  <rect width="830" height="265" rx="16" fill="#F6F6F3"/>
+  <path d="M554 40h12M560 34v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M592 40h12M598 34v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M630 40h12M636 34v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M668 40h12M674 34v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M706 40h12M712 34v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M744 40h12M750 34v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M782 40h12M788 34v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M573 78h12M579 72v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M611 78h12M617 72v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M649 78h12M655 72v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M687 78h12M693 72v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M725 78h12M731 72v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M763 78h12M769 72v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M554 116h12M560 110v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M592 116h12M598 110v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M630 116h12M636 110v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M668 116h12M674 110v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M706 116h12M712 110v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M744 116h12M750 110v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M782 116h12M788 110v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M573 154h12M579 148v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M611 154h12M617 148v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M649 154h12M655 148v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M687 154h12M693 148v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M725 154h12M731 148v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M763 154h12M769 148v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M554 192h12M560 186v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M592 192h12M598 186v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M630 192h12M636 186v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M668 192h12M674 186v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M706 192h12M712 186v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M744 192h12M750 186v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M782 192h12M788 186v12" stroke="#E2E4EA" stroke-width="2.5" stroke-linecap="round"/>
+  <rect x="48" y="58" width="64" height="64" rx="16" fill="#2F4AD0"/>
+  <path d="M80 74v32M64 90h32" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
+  <text x="48" y="186" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="56" font-weight="700" fill="#111318" letter-spacing="-1">Keystatic Plus</text>
+  <text x="50" y="222" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="21" fill="#4B5060">An editor for writers, built on Keystatic</text>
+  <text x="782" y="240" text-anchor="end" font-family="system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="13" fill="#6B7080">Fork of Keystatic by Thinkmill · MIT</text>
+</svg>
