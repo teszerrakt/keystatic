@@ -1,0 +1,84 @@
+name: Release (Plus)
+
+# Pushing a tag like v0.6.9-plus.1.1.0 builds, packs and publishes both fork packages to npm.
+# Publishing uses npm trusted publishing (OIDC): no token is stored. Each package names this
+# workflow as its trusted publisher on npmjs.com. Run it by hand with dry_run to check a version
+# without publishing.
+on:
+  push:
+    tags: ['v*-plus.*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to pack, e.g. 0.6.9-plus.1.1.0'
+        required: true
+      dry_run:
+        description: 'Pack and run npm publish --dry-run only'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: release-plus
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/setup-deps
+
+      - name: Version
+        id: version
+        run: |
+          version="${INPUT_VERSION:-${GITHUB_REF_NAME#v}}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-plus\.[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not a Plus version: $version"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dry_run=${INPUT_DRY_RUN:-false}" >> "$GITHUB_OUTPUT"
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+
+      # Trusted publishing needs npm 11.5.1 or later.
+      - name: npm version
+        run: |
+          npm --version
+          node -e "const [a,b,c]=process.argv[1].split('.').map(Number); process.exit(a>11||(a==11&&(b>5||(b==5&&c>=1)))?0:1)" "$(npm --version)"
+
+      - run: pnpm build:packages
+
+      - name: Pack
+        run: node scripts/plus-pack.mjs "$VERSION"
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      # The design system first: core depends on its exact version.
+      - name: Publish
+        run: |
+          flags=(--access public --tag latest)
+          [[ "$DRY_RUN" == true ]] && flags+=(--dry-run) || flags+=(--provenance)
+          ui="$(node -p "require('./design-system/pkg/package.json').version")-${VERSION#*-}"
+          npm publish "./plus-dist/teszerrakt-keystar-ui-$ui.tgz" "${flags[@]}"
+          npm publish ./plus-dist/teszerrakt-keystatic-core-"$VERSION".tgz "${flags[@]}"
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DRY_RUN: ${{ steps.version.outputs.dry_run }}
+
+      - name: Check the registry
+        if: steps.version.outputs.dry_run != 'true'
+        run: |
+          ui="$(node -p "require('./design-system/pkg/package.json').version")-${VERSION#*-}"
+          for i in $(seq 1 30); do
+            npm view "@teszerrakt/keystatic-core@$VERSION" version --prefer-online && \
+              npm view "@teszerrakt/keystar-ui@$ui" version --prefer-online && exit 0
+            sleep 10
+          done
+          exit 1
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
