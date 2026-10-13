@@ -31,7 +31,7 @@ import {
 } from './page-languages';
 import { useLanguages } from './pages-data';
 import { pageFile } from './review-data';
-import { hasDrafts } from './drafts';
+import { hasPlusUi } from './drafts';
 import { translateFrom, translateHref } from './translate';
 
 const crumb = css({
@@ -258,7 +258,7 @@ export function useCreateBreadcrumbs(collection: string, basePath: string) {
   const config = useConfig();
   const router = useRouter();
   const languages = useLanguages();
-  if (!hasDrafts(config)) return null;
+  if (!hasPlusUi(config)) return null;
   const language = languages.find(l => l.collection === collection)?.language;
   return [
     { key: 'collection', label: 'Pages', href: `${basePath}/pages` },

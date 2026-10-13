@@ -249,13 +249,16 @@ export function DeletePageDialog(props: {
                     ? '1 page links here.'
                     : `${links} pages link here.`}
                 </strong>{' '}
-                They're listed when you review the draft, so you can fix them
-                before publishing.
+                {drafts
+                  ? "They're listed when you review the draft, so you can fix them before publishing."
+                  : 'Their links break once the page is deleted.'}
               </Text>
             </Notice>
           )}
           <Text>
-            {drafts?.onLive ? (
+            {!drafts ? (
+              <>This goes live at once.</>
+            ) : drafts.onLive ? (
               <>
                 This starts a new draft, <strong>{draftName}</strong>. Inside a
                 draft, it joins that draft instead.
@@ -299,7 +302,7 @@ export function DeletePageDialog(props: {
           isDisabled={!ready || working}
           onPress={run}
         >
-          {working ? 'Deleting…' : 'Delete in draft'}
+          {working ? 'Deleting…' : drafts ? 'Delete in draft' : 'Delete'}
         </Button>
       </ButtonGroup>
     </Dialog>

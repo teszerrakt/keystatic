@@ -544,6 +544,24 @@ export function DraftsProvider(props: { children: ReactNode }) {
   );
 }
 
+// Refetches the repo, so a page opened after a commit shows it.
+export function useReloadShell() {
+  const config = useConfig();
+  const client = useClient();
+  const repoInfo = useRepoInfo();
+  return useCallback(async () => {
+    if (!repoInfo) return;
+    const repo =
+      config.storage.kind === 'github'
+        ? parseRepoConfig(config.storage.repo)
+        : { owner: repoInfo.owner, name: repoInfo.name };
+    await client
+      .query(GitHubAppShellQuery, repo, { requestPolicy: 'network-only' })
+      .toPromise()
+      .catch(() => {});
+  }, [client, config, repoInfo]);
+}
+
 export const branchHref = (branch: string) =>
   `/keystatic/branch/${encodeURIComponent(branch)}`;
 
@@ -580,21 +598,14 @@ function DraftsProviderInner(props: { children: ReactNode }) {
 
   // The shell caches every branch head; refresh it before leaving a branch
   // that was just merged or deleted, or the live page opens stale.
+  const reload = useReloadShell();
   const leaveTo = useCallback(
     async (href: string) => {
-      if (!repoInfo) return;
-      const repo =
-        config.storage.kind === 'github'
-          ? parseRepoConfig(config.storage.repo)
-          : { owner: repoInfo.owner, name: repoInfo.name };
-      await client
-        .query(GitHubAppShellQuery, repo, { requestPolicy: 'network-only' })
-        .toPromise()
-        .catch(() => {});
+      await reload();
       list.refresh();
       router.push(href);
     },
-    [client, config, repoInfo, router, list]
+    [reload, router, list]
   );
 
   // The first save is done once the new branch has moved past its base.

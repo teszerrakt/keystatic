@@ -53,6 +53,38 @@ const RecentlyPublished = gql`
   }
 ` as import('../../../__generated__/ts-gql/PlusRecentlyPublished').type;
 
+// Without drafts every save on the live site is a publish.
+const RecentSaves = gql`
+  query PlusRecentSaves($owner: String!, $name: String!) {
+    repository(owner: $owner, name: $name) {
+      id
+      defaultBranchRef {
+        id
+        target {
+          __typename
+          id
+          ... on Commit {
+            history(first: 30) {
+              nodes {
+                id
+                messageHeadline
+                committedDate
+                author {
+                  name
+                  user {
+                    id
+                    login
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+` as import('../../../__generated__/ts-gql/PlusRecentSaves').type;
+
 const card = css({
   alignItems: 'center',
   background: tokenSchema.color.background.canvas,
@@ -102,6 +134,14 @@ function Section(props: { id: string; title: string; children: ReactNode }) {
   );
 }
 
+type Published = {
+  id: string;
+  title: string;
+  by: string | undefined;
+  at: string | undefined;
+  noPreview: boolean;
+};
+
 export function HomePage() {
   const drafts = useDraftsContext();
   const config = useConfig();
@@ -113,20 +153,54 @@ export function HomePage() {
   const now = useNow(60_000);
   const router = useRouter();
   const [discarding, setDiscarding] = useState<Draft | null>(null);
+  const repo = { owner: repoInfo?.owner ?? '', name: repoInfo?.name ?? '' };
   const [recent] = useQuery({
     query: RecentlyPublished,
-    pause: !repoInfo,
-    variables: { owner: repoInfo?.owner ?? '', name: repoInfo?.name ?? '' },
+    pause: !repoInfo || !drafts,
+    variables: repo,
   });
-  if (!drafts) return null;
+  const [saves] = useQuery({
+    query: RecentSaves,
+    pause: !repoInfo || !!drafts,
+    variables: repo,
+  });
 
   const first = viewer?.name?.split(' ')[0] || viewer?.login;
-  const mine = drafts.drafts.filter(d => !viewer || d.author === viewer.login);
+  const mine = (drafts?.drafts ?? []).filter(
+    d => !viewer || d.author === viewer.login
+  );
   const prefix = draftPrefix(config);
-  const published = (recent.data?.repository?.pullRequests?.nodes ?? [])
-    .flatMap(pr => (pr && pr.headRefName.startsWith(prefix) ? [pr] : []))
-    .sort((a, b) => (b.mergedAt ?? '').localeCompare(a.mergedAt ?? ''))
-    .slice(0, 5);
+  const target = saves.data?.repository?.defaultBranchRef?.target;
+  const published: Published[] = drafts
+    ? (recent.data?.repository?.pullRequests?.nodes ?? [])
+        .flatMap(pr => (pr && pr.headRefName.startsWith(prefix) ? [pr] : []))
+        .sort((a, b) => (b.mergedAt ?? '').localeCompare(a.mergedAt ?? ''))
+        .map(pr => ({
+          id: pr.id,
+          title: pr.title,
+          by: pr.author?.login,
+          at: pr.mergedAt ?? undefined,
+          noPreview: isPublishNow(pr.body),
+        }))
+    : (target?.__typename === 'Commit'
+        ? target.history.nodes ?? []
+        : []
+      ).flatMap(c => {
+        const page = c && pageFromCommit(c.messageHeadline, languages);
+        if (!c || (!page && c.messageHeadline !== `Update ${menu?.path}`)) {
+          return [];
+        }
+        const title = page ? humanize(page.slug) : 'Menu sections';
+        return [
+          {
+            id: c.id,
+            title: page?.deleted ? `${title} (deleted)` : title,
+            by: c.author?.user?.login ?? c.author?.name ?? undefined,
+            at: c.committedDate,
+            noPreview: false,
+          },
+        ];
+      });
   const base = `/keystatic/branch/${encodeURIComponent(branch)}`;
   const primary = languages[0]?.collection;
 
@@ -150,61 +224,63 @@ export function HomePage() {
             {first ? `Welcome back, ${first}` : 'Welcome back'}
           </Heading>
 
-          <Section id="plus-drafts" title="Your unfinished drafts">
-            {mine.length === 0 && (
-              <Text color="neutralSecondary">
-                You have no drafts. Edit any page to start one.
-              </Text>
-            )}
-            {mine.map(d => {
-              const status = draftStatus(d);
-              const page = pageFromCommit(d.lastSave, languages);
-              const draftBase = `/keystatic/branch/${encodeURIComponent(
-                d.name
-              )}`;
-              const href =
-                page && !page.deleted
-                  ? `${draftBase}/collection/${encodeURIComponent(
-                      page.collection
-                    )}/item/${encodeURIComponent(page.slug)}`
-                  : menu && d.lastSave === `Update ${menu.path}`
-                  ? `${draftBase}/menu-sections`
-                  : `${draftBase}/pages`;
-              return (
-                <article key={d.name} className={card}>
-                  <Flex direction="column" gap="regular" flex minWidth={0}>
-                    <Text weight="semibold">{drafts.title(d.name)}</Text>
-                    <Text size="small" color="neutralSecondary">
-                      {[
-                        page && humanize(page.slug),
-                        `saved ${ago(d.savedAt, now)}`,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </Text>
-                  </Flex>
-                  <Badge tone={statusChip[status].tone}>
-                    {statusChip[status].label}
-                  </Badge>
-                  {status !== 'publishing' && (
-                    <ActionButton
-                      prominence="low"
-                      onPress={() => setDiscarding(d)}
-                    >
-                      Discard…
-                    </ActionButton>
-                  )}
-                  <Button href={href}>Continue</Button>
-                </article>
-              );
-            })}
-            {mine.length > 0 && (
-              <Text size="small" color="neutralSecondary">
-                A draft keeps everything you saved, for as long as you need.
-                Nobody sees it until you publish.
-              </Text>
-            )}
-          </Section>
+          {drafts && (
+            <Section id="plus-drafts" title="Your unfinished drafts">
+              {mine.length === 0 && (
+                <Text color="neutralSecondary">
+                  You have no drafts. Edit any page to start one.
+                </Text>
+              )}
+              {mine.map(d => {
+                const status = draftStatus(d);
+                const page = pageFromCommit(d.lastSave, languages);
+                const draftBase = `/keystatic/branch/${encodeURIComponent(
+                  d.name
+                )}`;
+                const href =
+                  page && !page.deleted
+                    ? `${draftBase}/collection/${encodeURIComponent(
+                        page.collection
+                      )}/item/${encodeURIComponent(page.slug)}`
+                    : menu && d.lastSave === `Update ${menu.path}`
+                    ? `${draftBase}/menu-sections`
+                    : `${draftBase}/pages`;
+                return (
+                  <article key={d.name} className={card}>
+                    <Flex direction="column" gap="regular" flex minWidth={0}>
+                      <Text weight="semibold">{drafts.title(d.name)}</Text>
+                      <Text size="small" color="neutralSecondary">
+                        {[
+                          page && humanize(page.slug),
+                          `saved ${ago(d.savedAt, now)}`,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </Text>
+                    </Flex>
+                    <Badge tone={statusChip[status].tone}>
+                      {statusChip[status].label}
+                    </Badge>
+                    {status !== 'publishing' && (
+                      <ActionButton
+                        prominence="low"
+                        onPress={() => setDiscarding(d)}
+                      >
+                        Discard…
+                      </ActionButton>
+                    )}
+                    <Button href={href}>Continue</Button>
+                  </article>
+                );
+              })}
+              {mine.length > 0 && (
+                <Text size="small" color="neutralSecondary">
+                  A draft keeps everything you saved, for as long as you need.
+                  Nobody sees it until you publish.
+                </Text>
+              )}
+            </Section>
+          )}
 
           <Section id="plus-start" title="Start something new">
             <Flex gap="regular" wrap>
@@ -243,26 +319,26 @@ export function HomePage() {
                 Nothing published from the editor yet.
               </Text>
             ) : (
-              published.map(pr => (
-                <Flex key={pr.id} alignItems="center" gap="regular">
+              published.slice(0, 5).map(p => (
+                <Flex key={p.id} alignItems="center" gap="regular">
                   <Flex direction="column" gap="small" flex minWidth={0}>
-                    <Text weight="medium">{pr.title}</Text>
+                    <Text weight="medium">{p.title}</Text>
                     <Text size="small" color="neutralSecondary">
-                      {[pr.author?.login, ago(pr.mergedAt ?? undefined, now)]
-                        .filter(Boolean)
-                        .join(' · ')}
+                      {[p.by, ago(p.at, now)].filter(Boolean).join(' · ')}
                     </Text>
                   </Flex>
-                  {isPublishNow(pr.body) && <Badge>No preview</Badge>}
+                  {p.noPreview && <Badge>No preview</Badge>}
                 </Flex>
               ))
             )}
           </Section>
         </Flex>
       </Box>
-      <DialogContainer onDismiss={() => setDiscarding(null)}>
-        {discarding && <DiscardDialog draft={discarding} />}
-      </DialogContainer>
+      {drafts && (
+        <DialogContainer onDismiss={() => setDiscarding(null)}>
+          {discarding && <DiscardDialog draft={discarding} />}
+        </DialogContainer>
+      )}
     </Flex>
   );
 }

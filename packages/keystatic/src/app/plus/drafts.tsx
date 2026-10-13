@@ -13,8 +13,21 @@ import { getBranchPrefix } from '../utils';
 import { useCreateDraft } from './draft-commit';
 import { useDraftsContext } from './draft-data';
 
+// The fork's editor (Home, Pages, Images, Menu sections) runs on remote
+// storage; local storage keeps upstream Keystatic's.
+export function hasPlusUi(config: Config) {
+  return config.storage.kind !== 'local';
+}
+
 export function hasDrafts(config: Config) {
   return config.storage.kind !== 'local' && !!config.storage.drafts;
+}
+
+// 'drafts': saves go into a draft. 'direct': saves go live at once.
+// null: upstream Keystatic.
+export function saveMode(config: Config): 'drafts' | 'direct' | null {
+  if (!hasPlusUi(config)) return null;
+  return hasDrafts(config) ? 'drafts' : 'direct';
 }
 
 export function draftPrefix(config: Config) {
@@ -110,7 +123,11 @@ export function useDraftSaveCopy() {
   const config = useConfig();
   const branch = useCurrentBranch();
   const repoInfo = useRepoInfo();
-  if (!hasDrafts(config)) return null;
+  const mode = saveMode(config);
+  if (!mode) return null;
+  if (mode === 'direct') {
+    return { save: 'Publish', unsaved: 'Unsaved changes', saved: null };
+  }
   const live = branch === repoInfo?.defaultBranch;
   return {
     save: live ? 'Save as draft' : 'Save draft',
