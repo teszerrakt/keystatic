@@ -33,8 +33,14 @@ These apply to GitHub storage. Local storage keeps Keystatic's own editor.
 import { fields } from '@keystatic/core';
 
 const menuFields = {
-  section: fields.menuSection({ label: 'Menu section', singleton: 'menuSections', defaultValue: 'getting-started' }),
-  sidebar: fields.object({ order: fields.menuOrder({ label: 'Place in the menu' }) }),
+  section: fields.menuSection({
+    label: 'Menu section',
+    singleton: 'menuSections',
+    defaultValue: 'getting-started',
+  }),
+  sidebar: fields.object({
+    order: fields.menuOrder({ label: 'Place in the menu' }),
+  }),
 };
 ```
 
@@ -46,7 +52,11 @@ const menuFields = {
 content: fields.markdoc({
   label: 'Content',
   options: {
-    image: { directory: 'src/assets/images/docs', publicPath: '../../assets/images/docs/', library: true },
+    image: {
+      directory: 'src/assets/images/docs',
+      publicPath: '../../assets/images/docs/',
+      library: true,
+    },
   },
 }),
 ```
@@ -76,7 +86,12 @@ storage: {
 ```ts
 import { githubDeploymentsPreview } from '@keystatic/core';
 
-storage: { kind: 'github', repo: 'owner/site', drafts: true, preview: githubDeploymentsPreview() },
+storage: {
+  kind: 'github',
+  repo: 'owner/site',
+  drafts: true,
+  preview: githubDeploymentsPreview(),
+},
 ```
 
 ### Sign-in plug-in
