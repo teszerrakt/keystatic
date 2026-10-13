@@ -65,9 +65,9 @@ export function ImageLibraryProvider(props: {
   extras: CommitExtras;
   children: ReactNode;
 }) {
-  const config = useConfig();
   const dir = useImageDirectory();
-  return isDraftsOnly(config) && dir ? (
+  // Any storage mode: the field's `library` option alone makes references.
+  return dir ? (
     <LibraryProvider dir={dir} extras={props.extras}>
       {props.children}
     </LibraryProvider>
@@ -222,6 +222,7 @@ function ImagePicker(
   }
 ) {
   const dialog = useDialogContainer();
+  const config = useConfig();
   const library = useLibrary();
   const branch = useCurrentBranch();
   const { staged, add, taken } = props;
@@ -410,11 +411,13 @@ function ImagePicker(
           </TabPanels>
         </Tabs>
       </Content>
-      <Footer>
-        <TextLink href={`${branchHref(branch)}/images`} target="_blank">
-          Manage images
-        </TextLink>
-      </Footer>
+      {isDraftsOnly(config) && (
+        <Footer>
+          <TextLink href={`${branchHref(branch)}/images`} target="_blank">
+            Manage images
+          </TextLink>
+        </Footer>
+      )}
       <ButtonGroup>
         <Button onPress={dialog.dismiss}>Cancel</Button>
         <Button

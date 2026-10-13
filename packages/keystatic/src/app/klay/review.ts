@@ -184,7 +184,8 @@ export function resolveFile(fromFile: string, target: string) {
 // Relative and root-relative link and picture targets, without query or hash.
 export function linkTargets(text: string) {
   const targets = [
-    ...text.matchAll(/\]\(\s*<?([^)\s>]+)/g),
+    // One level of balanced parentheses, as in `photo (1).png`.
+    ...text.matchAll(/\]\(\s*<?((?:[^()\s>]|\([^()\s>]*\))+)/g),
     ...text.matchAll(/(?:href|src)="([^"]+)"/g),
   ].map(m => m[1]);
   return [...new Set(targets)]

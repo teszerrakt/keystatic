@@ -6,7 +6,7 @@ import { markdocToProseMirror } from '../markdoc/parse';
 import { proseMirrorToMarkdoc } from '../markdoc/serialize';
 import { createEditorSchema } from '../schema';
 import { editorOptionsToConfig } from '../../config';
-import { libraryImageAttrs } from '../image-library';
+import { chosenFileAttrs, libraryImageAttrs } from '../image-library';
 
 const dir = 'src/assets/images/docs';
 const schema = createEditorSchema(
@@ -131,4 +131,22 @@ test('without the library option, another folder’s picture stays as text', () 
     'page'
   );
   expect(doc.textContent).toBe(`![Hero](${src})`);
+});
+
+test('without a library provider, a chosen file turns a reference into a page picture', () => {
+  const bytes = new Uint8Array([7]);
+  expect(
+    chosenFileAttrs(
+      schema.config,
+      { fromLibrary: true },
+      { name: 'new.png', bytes }
+    )
+  ).toEqual({ src: bytes, filename: 'new.png', fromLibrary: false });
+  expect(
+    chosenFileAttrs(
+      schema.config,
+      { fromLibrary: false },
+      { name: 'new.png', bytes }
+    )
+  ).toEqual({ src: bytes });
 });

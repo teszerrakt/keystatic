@@ -104,6 +104,22 @@ export async function newImageAttrs(
   };
 }
 
+// Without a library provider (a library site outside drafts mode, or a
+// singleton) a chosen file goes to the page's folder, so it is saved.
+export function chosenFileAttrs(
+  config: EditorConfig,
+  attrs: { fromLibrary?: boolean },
+  file: { name: string; bytes: Uint8Array }
+) {
+  return attrs.fromLibrary
+    ? {
+        src: file.bytes,
+        filename: config.image!.transformFilename(file.name),
+        fromLibrary: false,
+      }
+    : { src: file.bytes };
+}
+
 export function libraryImageAttrs(config: EditorConfig, image: PickedImage) {
   return {
     src: image.bytes,

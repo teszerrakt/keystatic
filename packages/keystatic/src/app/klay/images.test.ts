@@ -144,3 +144,15 @@ test('an alt text save merges into the file as it is now', () => {
     '{\n  "shared/a.png": "A"\n}\n'
   );
 });
+
+test('a picture with parentheses in its name is counted as used', () => {
+  const page = {
+    filePath: 'src/content/docs/help/a.md',
+    slug: 'a',
+    collection: 'docsEn',
+    text: '![p](../../../assets/images/docs/shared/My%20Photo%20(1).JPG)',
+  };
+  expect([...imageUsage([page]).keys()]).toEqual([
+    `${dir}/shared/My Photo (1).JPG`,
+  ]);
+});

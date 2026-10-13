@@ -24,6 +24,7 @@ import { EditorState, NodeSelection } from 'prosemirror-state';
 import { useEditorDispatchCommand, useEditorSchema } from '../editor-view';
 import { Node } from 'prosemirror-model';
 import {
+  chosenFileAttrs,
   ImageLibrary,
   libraryImageAttrs,
   libraryImagePath,
@@ -63,7 +64,17 @@ export function ImagePopover(props: {
                 runCommand((state, dispatch) => {
                   if (dispatch) {
                     const { tr } = state;
-                    tr.setNodeAttribute(props.pos, 'src', src);
+                    const next = chosenFileAttrs(
+                      schema.config,
+                      props.node.attrs,
+                      {
+                        name: file.name,
+                        bytes: src,
+                      }
+                    );
+                    for (const [key, value] of Object.entries(next)) {
+                      tr.setNodeAttribute(props.pos, key, value);
+                    }
                     const newState = state.apply(tr);
                     tr.setSelection(
                       NodeSelection.create(newState.doc, props.pos)
@@ -198,6 +209,7 @@ function LibraryImagePopover(props: {
             alt={attrs.alt}
             title={attrs.title}
             filename={attrs.filename}
+            filenameReadOnly={attrs.fromLibrary}
             onSubmit={value => {
               setAttrs(value);
               setDialogOpen(false);
@@ -213,6 +225,8 @@ function ImageDialog(props: {
   alt: string;
   title: string;
   filename: string;
+  // A library picture's file is shared: renaming it here would break its src.
+  filenameReadOnly?: boolean;
   onSubmit: (value: { alt: string; filename: string; title: string }) => void;
 }) {
   const schema = useEditorSchema();
@@ -262,6 +276,7 @@ function ImageDialog(props: {
           <Flex gap="large" direction="column">
             <TextField
               label="File name"
+              isReadOnly={props.filenameReadOnly}
               onChange={setFileName}
               onBlur={() => setFileNameTouched(true)}
               value={fileName}
