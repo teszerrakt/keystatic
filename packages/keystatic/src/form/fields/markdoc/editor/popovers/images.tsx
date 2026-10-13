@@ -23,6 +23,13 @@ import { getUploadedFileObject } from '../../../image/ui';
 import { EditorState, NodeSelection } from 'prosemirror-state';
 import { useEditorDispatchCommand, useEditorSchema } from '../editor-view';
 import { Node } from 'prosemirror-model';
+import {
+  chosenFileAttrs,
+  ImageLibrary,
+  libraryImageAttrs,
+  libraryImagePath,
+  useImageLibrary,
+} from '../image-library';
 
 export function ImagePopover(props: {
   node: Node;
@@ -32,6 +39,11 @@ export function ImagePopover(props: {
   let stringFormatter = useLocalizedStringFormatter(l10nMessages);
   const runCommand = useEditorDispatchCommand();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const schema = useEditorSchema();
+  const library = useImageLibrary(schema.config);
+  if (library) {
+    return <LibraryImagePopover {...props} library={library} />;
+  }
   return (
     <>
       <Flex gap="regular" padding="regular">
@@ -52,7 +64,17 @@ export function ImagePopover(props: {
                 runCommand((state, dispatch) => {
                   if (dispatch) {
                     const { tr } = state;
-                    tr.setNodeAttribute(props.pos, 'src', src);
+                    const next = chosenFileAttrs(
+                      schema.config,
+                      props.node.attrs,
+                      {
+                        name: file.name,
+                        bytes: src,
+                      }
+                    );
+                    for (const [key, value] of Object.entries(next)) {
+                      tr.setNodeAttribute(props.pos, key, value);
+                    }
                     const newState = state.apply(tr);
                     tr.setSelection(
                       NodeSelection.create(newState.doc, props.pos)
@@ -123,10 +145,88 @@ export function ImagePopover(props: {
   );
 }
 
+// The Images embed: text buttons, and Change image opens the library.
+function LibraryImagePopover(props: {
+  node: Node;
+  pos: number;
+  library: ImageLibrary;
+}) {
+  const runCommand = useEditorDispatchCommand();
+  const schema = useEditorSchema();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { attrs } = props.node;
+  const setAttrs = (next: Record<string, unknown>) =>
+    runCommand((state, dispatch) => {
+      if (dispatch) {
+        const { tr } = state;
+        tr.setNodeMarkup(props.pos, undefined, { ...attrs, ...next });
+        const newState = state.apply(tr);
+        tr.setSelection(NodeSelection.create(newState.doc, props.pos));
+        dispatch(tr);
+      }
+      return true;
+    });
+  return (
+    <>
+      <Flex gap="xsmall" padding="small">
+        <ActionButton prominence="low" onPress={() => setDialogOpen(true)}>
+          Edit
+        </ActionButton>
+        <ActionButton
+          prominence="low"
+          onPress={async () => {
+            const image = await props.library.pick({
+              current: attrs.fromLibrary
+                ? {
+                    path: libraryImagePath(schema.config, attrs.filename),
+                    alt: attrs.alt,
+                    title: attrs.title,
+                  }
+                : undefined,
+            });
+            if (image) setAttrs(libraryImageAttrs(schema.config, image));
+          }}
+        >
+          Change image
+        </ActionButton>
+        <ActionButton
+          prominence="low"
+          onPress={() =>
+            runCommand((state, dispatch) => {
+              dispatch?.(
+                state.tr.delete(props.pos, props.pos + props.node.nodeSize)
+              );
+              return true;
+            })
+          }
+        >
+          Remove
+        </ActionButton>
+      </Flex>
+      <DialogContainer onDismiss={() => setDialogOpen(false)}>
+        {dialogOpen && (
+          <ImageDialog
+            alt={attrs.alt}
+            title={attrs.title}
+            filename={attrs.filename}
+            filenameReadOnly={attrs.fromLibrary}
+            onSubmit={value => {
+              setAttrs(value);
+              setDialogOpen(false);
+            }}
+          />
+        )}
+      </DialogContainer>
+    </>
+  );
+}
+
 function ImageDialog(props: {
   alt: string;
   title: string;
   filename: string;
+  // A library picture's file is shared: renaming it here would break its src.
+  filenameReadOnly?: boolean;
   onSubmit: (value: { alt: string; filename: string; title: string }) => void;
 }) {
   const schema = useEditorSchema();
@@ -176,6 +276,7 @@ function ImageDialog(props: {
           <Flex gap="large" direction="column">
             <TextField
               label="File name"
+              isReadOnly={props.filenameReadOnly}
               onChange={setFileName}
               onBlur={() => setFileNameTouched(true)}
               value={fileName}

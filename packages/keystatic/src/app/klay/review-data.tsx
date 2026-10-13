@@ -22,6 +22,7 @@ import {
   humanize,
   PageChange,
   PageText,
+  PICTURE,
   Problem,
 } from './review';
 
@@ -140,17 +141,20 @@ export function useDraftReview(): DraftReview {
         );
         return { ...p, url: template?.replace('{slug}', p.slug), path };
       });
-    // A deleted page can break links anywhere; otherwise only the edited pages can.
-    const toScan = removed.length
-      ? all
-      : all.filter(a =>
-          pages.some(
-            p =>
-              p.collection === a.collection &&
-              p.slug === a.slug &&
-              p.kind !== 'removed'
-          )
-        );
+    // A deleted page or picture can break links anywhere; otherwise only the
+    // edited pages can.
+    const toScan =
+      removed.length ||
+      files.some(f => f.kind === 'removed' && PICTURE.test(f.path))
+        ? all
+        : all.filter(a =>
+            pages.some(
+              p =>
+                p.collection === a.collection &&
+                p.slug === a.slug &&
+                p.kind !== 'removed'
+            )
+          );
 
     const fetches: Fetch[] = [
       ...toScan.flatMap(a =>

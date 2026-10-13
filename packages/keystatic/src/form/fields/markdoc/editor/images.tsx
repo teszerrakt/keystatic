@@ -7,8 +7,8 @@ import { imageIcon } from '@keystar/ui/icon/icons/imageIcon';
 import { Tooltip, TooltipTrigger } from '@keystar/ui/tooltip';
 import { Text } from '@keystar/ui/typography';
 
-import { getUploadedFileObject } from '../../image/ui';
 import { EditorSchema, getEditorSchema } from './schema';
+import { chooseImageAttrs, newImageAttrs } from './image-library';
 import { ToolbarButton } from './Toolbar';
 import { EditorConfig } from '../config';
 import { getSrcPrefix } from '../../image/getSrcPrefix';
@@ -73,15 +73,11 @@ export function imageDropPlugin(schema: EditorSchema) {
             imageType &&
             schema.config.image
           ) {
-            const { transformFilename } = schema.config.image;
             (async () => {
+              const attrs = await newImageAttrs(file, schema.config, view);
+              if (!attrs) return;
               const slice = Slice.maxOpen(
-                Fragment.from(
-                  imageType.createChecked({
-                    src: new Uint8Array(await file.arrayBuffer()),
-                    filename: transformFilename(file.name),
-                  })
-                )
+                Fragment.from(imageType.createChecked(attrs))
               );
               const pos = dropPoint(view.state.doc, $mouse.pos, slice);
               if (pos === null) return false;
@@ -118,15 +114,12 @@ export function imageDropPlugin(schema: EditorSchema) {
             imageType &&
             schema.config.image
           ) {
-            const { transformFilename } = schema.config.image;
-
             (async () => {
+              const attrs = await newImageAttrs(file, schema.config, view);
+              if (!attrs) return;
               view.dispatch(
                 view.state.tr.replaceSelectionWith(
-                  imageType.createChecked({
-                    src: new Uint8Array(await file.arrayBuffer()),
-                    filename: transformFilename(file.name),
-                  })
+                  imageType.createChecked(attrs)
                 )
               );
             })();
@@ -145,15 +138,13 @@ export function ImageToolbarButton() {
         command={(_, dispatch, view) => {
           if (dispatch && view) {
             (async () => {
-              const file = await getUploadedFileObject('image/*');
               const schema = getEditorSchema(view.state.schema);
-              if (!file || !schema.config.image) return;
+              if (!schema.config.image) return;
+              const attrs = await chooseImageAttrs(schema.config, view);
+              if (!attrs) return;
               view.dispatch(
                 view.state.tr.replaceSelectionWith(
-                  view.state.schema.nodes.image.createChecked({
-                    src: new Uint8Array(await file.arrayBuffer()),
-                    filename: schema.config.image.transformFilename(file.name),
-                  })
+                  view.state.schema.nodes.image.createChecked(attrs)
                 )
               );
             })();

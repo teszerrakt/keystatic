@@ -6,6 +6,7 @@ import {
   findProblems,
   frontmatterTitle,
   groupChanges,
+  linkTargets,
   PageText,
   totalChanges,
 } from './review';
@@ -123,4 +124,12 @@ test('pictures resolve from the page file', () => {
   expect(problems.map(p => [p.kind, p.target])).toEqual([
     ['missing-picture', '../../../assets/images/docs/b.webp'],
   ]);
+});
+
+test('link targets keep balanced parentheses and stop at the closing one', () => {
+  expect(
+    linkTargets(
+      '![a](../img/My%20Photo%20(1).JPG) (see [b](/help/x/#top)) <img src="c.png">'
+    )
+  ).toEqual(['../img/My%20Photo%20(1).JPG', '/help/x/', 'c.png']);
 });

@@ -36,8 +36,12 @@ import { getCustomMarkSpecs, getCustomNodeSpecs } from './custom-components';
 import { EditorConfig } from '../config';
 import { toSerialized } from './props-serialization';
 import { getInitialPropsValue } from '../../../initial-values';
-import { getUploadedFileObject } from '../../image/ui';
 import { base64UrlEncode, base64UrlDecode } from '#base64';
+import {
+  chooseImageAttrs,
+  libraryImagePath,
+  viewImageLibrary,
+} from './image-library';
 
 const blockElementSpacing = css({
   marginBlock: '1em',
@@ -342,6 +346,9 @@ const nodeSpecs = {
       filename: {},
       alt: { default: '' },
       title: { default: '' },
+      // `filename` is then a path under the image directory, and `src` may
+      // be empty until the library loads it.
+      fromLibrary: { default: false },
     },
     insertMenu: {
       label: 'Image',
@@ -351,15 +358,13 @@ const nodeSpecs = {
         return (state, dispatch, view) => {
           if (dispatch && view) {
             (async () => {
-              const file = await getUploadedFileObject('image/*');
               const schema = getEditorSchema(nodeType.schema);
-              if (!file || !schema.config.image) return;
+              if (!schema.config.image) return;
+              const attrs = await chooseImageAttrs(schema.config, view);
+              if (!attrs) return;
               view.dispatch(
                 view.state.tr.replaceSelectionWith(
-                  nodeType.createChecked({
-                    src: new Uint8Array(await file.arrayBuffer()),
-                    filename: schema.config.image.transformFilename(file.name),
-                  })
+                  nodeType.createChecked(attrs)
                 )
               );
             })();
@@ -368,14 +373,30 @@ const nodeSpecs = {
         };
       },
     },
-    nodeView(node) {
-      const blob = new Blob([node.attrs.src], {
-        type: node.attrs.filename.endsWith('.svg')
-          ? 'image/svg+xml'
-          : undefined,
-      });
+    nodeView(node, view) {
+      const { config } = getEditorSchema(node.type.schema);
+      const library = viewImageLibrary(view);
       const dom = document.createElement('img');
-      dom.src = URL.createObjectURL(blob);
+      let url: string | undefined;
+      let destroyed = false;
+      const show = (bytes: Uint8Array) => {
+        url = URL.createObjectURL(
+          new Blob([bytes], {
+            type: node.attrs.filename.endsWith('.svg')
+              ? 'image/svg+xml'
+              : undefined,
+          })
+        );
+        dom.src = url;
+      };
+      if (node.attrs.fromLibrary && !node.attrs.src.byteLength) {
+        library?.load(libraryImagePath(config, node.attrs.filename)).then(
+          bytes => !destroyed && show(bytes),
+          () => {}
+        );
+      } else {
+        show(node.attrs.src);
+      }
       dom.alt = node.attrs.alt;
       dom.title = node.attrs.title;
       dom.dataset.filename = node.attrs.filename;
@@ -395,7 +416,8 @@ const nodeSpecs = {
       return {
         dom,
         destroy() {
-          URL.revokeObjectURL(dom.src);
+          destroyed = true;
+          if (url) URL.revokeObjectURL(url);
         },
       };
     },
@@ -411,6 +433,7 @@ const nodeSpecs = {
           alt: node.attrs.alt,
           title: node.attrs.title,
           'data-filename': node.attrs.filename,
+          ...(node.attrs.fromLibrary ? { 'data-from-library': '' } : {}),
         },
       ];
     },
@@ -430,6 +453,7 @@ const nodeSpecs = {
             filename,
             alt: node.getAttribute('alt') ?? '',
             title: node.getAttribute('title') ?? '',
+            fromLibrary: node.hasAttribute('data-from-library'),
           };
         },
       },

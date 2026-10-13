@@ -440,6 +440,7 @@ test('image with space in src', () => {
         <image
           alt="something"
           filename="something something.png"
+          fromLibrary={false}
           src={Uint8Array []}
           title={null}
         />
