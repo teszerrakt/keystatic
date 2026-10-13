@@ -2,6 +2,7 @@
 import { expect, test } from 'vitest';
 import {
   clashMessage,
+  emptyListText,
   formatSize,
   imageChanges,
   freePath,
@@ -13,6 +14,7 @@ import {
   serializeAltTexts,
   uploadProblem,
   usageLabel,
+  usedOnPagesText,
   withAlt,
 } from './images';
 
@@ -170,4 +172,27 @@ test('the sidebar counts what the Changed view lists', () => {
   const changed = libraryImages(dir, current, base).filter(i => i.draft);
   expect(imageChanges(dir, current, base)).toHaveLength(changed.length);
   expect(changed.map(i => i.name)).toEqual(['new.png', 'hero.png']);
+});
+
+test('the remove warning is singular for one page', () => {
+  expect(usedOnPagesText(1)).toEqual({
+    count: '1 page uses this image.',
+    effect:
+      "It shows a broken picture after you publish, and it's listed when you review the draft.",
+    keep: 'that page',
+  });
+  expect(usedOnPagesText(2).count).toBe('2 pages use this image.');
+  expect(usedOnPagesText(2).keep).toBe('those pages');
+});
+
+test('an empty list says why', () => {
+  expect(emptyListText({ changedView: false, filtered: false })).toBe(
+    'No images yet.'
+  );
+  expect(emptyListText({ changedView: false, filtered: true })).toBe(
+    'No images match.'
+  );
+  expect(emptyListText({ changedView: true, filtered: false })).toBe(
+    'No images changed in this draft yet.'
+  );
 });

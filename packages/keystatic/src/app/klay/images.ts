@@ -145,6 +145,34 @@ export function clashMessage(pages: string[]) {
   return `An image with this name already exists.${used}`;
 }
 
+// The remove dialog's warning, singular for one page.
+export function usedOnPagesText(pages: number) {
+  return pages === 1
+    ? {
+        count: '1 page uses this image.',
+        effect:
+          "It shows a broken picture after you publish, and it's listed when you review the draft.",
+        keep: 'that page',
+      }
+    : {
+        count: `${pages} pages use this image.`,
+        effect:
+          "They show a broken picture after you publish, and they're listed when you review the draft.",
+        keep: 'those pages',
+      };
+}
+
+export function emptyListText(input: {
+  changedView: boolean;
+  filtered: boolean;
+}) {
+  return input.changedView
+    ? 'No images changed in this draft yet.'
+    : input.filtered
+    ? 'No images match.'
+    : 'No images yet.';
+}
+
 export type PageFile = {
   filePath: string;
   text: string;

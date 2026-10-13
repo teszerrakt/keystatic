@@ -52,6 +52,7 @@ import {
   altKey,
   baseName,
   clashMessage,
+  emptyListText,
   freePath,
   LibraryImage,
   planUploads,
@@ -199,7 +200,7 @@ function Details(props: {
       <Box border="neutral" borderRadius="regular" padding="regular">
         <ImagePreview preview={preview} height={140} />
       </Box>
-      <Flex direction="column" gap="small">
+      <Flex direction="column" gap="regular">
         <Text weight="semibold">{props.image.name}</Text>
         <Text size="small" color="neutralSecondary">
           {sizeLine(preview.dims, preview.bytes)}
@@ -364,7 +365,9 @@ function ImagePicker(
                         />
                       ))}
                       {!visible.length && (
-                        <Text color="neutralSecondary">No images match.</Text>
+                        <Text color="neutralSecondary">
+                          {emptyListText({ changedView: false, filtered: !!q })}
+                        </Text>
                       )}
                     </div>
                   )}

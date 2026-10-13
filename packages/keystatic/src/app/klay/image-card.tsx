@@ -148,7 +148,7 @@ export function ImageCard(props: {
       <ImagePreview preview={preview} className={thumb} />
       {props.compact && props.selected && (
         <span className={tick}>
-          <Icon src={checkIcon} size="small" color="inherit" />
+          <Icon src={checkIcon} size="small" color="onEmphasis" />
         </span>
       )}
       <Flex

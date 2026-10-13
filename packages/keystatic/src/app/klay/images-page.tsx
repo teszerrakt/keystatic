@@ -46,6 +46,7 @@ import {
   ALT_FILE,
   altKey,
   clashMessage,
+  emptyListText,
   contentType,
   extension,
   formatSize,
@@ -55,6 +56,7 @@ import {
   withAlt,
   stem,
   uploadProblem,
+  usedOnPagesText,
 } from './images';
 import { PageUse, useImageCommit, useLibrary } from './images-data';
 
@@ -100,32 +102,29 @@ function RemoveImageDialog(props: {
   const [error, setError] = useState<string | null>(null);
   const draftName = drafts?.title(drafts.onLive ? props.newDraft : branch);
   const n = props.pages.length;
+  const used = usedOnPagesText(n);
   return (
     <Dialog size={n ? 'medium' : 'small'}>
       <Heading>{`Remove “${props.image.name}”?`}</Heading>
       <Content>
         <Flex direction="column" gap="xlarge">
           <Text color="neutralSecondary">
-            It stays on the site until you publish. Until then you can undo it.
+            {props.image.draft === 'new'
+              ? 'You can undo it.'
+              : 'It stays on the site until you publish. Until then you can undo it.'}
           </Text>
           {n > 0 && (
             <>
               <Notice tone="caution">
                 <Flex direction="column" gap="regular">
                   <Text>
-                    <strong>
-                      {n === 1
-                        ? '1 page uses this image.'
-                        : `${n} pages use this image.`}
-                    </strong>{' '}
-                    They show a broken picture after you publish, and they're
-                    listed when you review the draft.
+                    <strong>{used.count}</strong> {used.effect}
                   </Text>
                   <PageList pages={props.pages} base={props.base} />
                 </Flex>
               </Notice>
               <Text>
-                To change the picture and keep those pages working, use{' '}
+                To change the picture and keep {used.keep} working, use{' '}
                 <strong>Replace file</strong> instead.
               </Text>
             </>
@@ -620,9 +619,10 @@ export function ImagesPage() {
             ) : visible.length === 0 ? (
               <Box border="muted" borderRadius="large" padding="xxlarge">
                 <Text color="neutralSecondary" align="center">
-                  {shown === 'changed'
-                    ? 'No images changed in this draft yet.'
-                    : 'No images match.'}
+                  {emptyListText({
+                    changedView: shown === 'changed',
+                    filtered: !!q || usageFilter !== 'all',
+                  })}
                 </Text>
               </Box>
             ) : (
@@ -651,7 +651,10 @@ export function ImagesPage() {
             key={selectedImage.path}
             image={selectedImage}
             pages={loaded.usersOf(selectedImage.path)}
-            alt={loaded.alts?.[altKey(loaded.dir, selectedImage.path)]}
+            alt={
+              loaded.alts &&
+              (loaded.alts[altKey(loaded.dir, selectedImage.path)] ?? '')
+            }
             base={base}
             busy={busy}
             onClose={() => setSelected(null)}
