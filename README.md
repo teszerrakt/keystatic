@@ -1,80 +1,132 @@
-<a href="https://keystatic.thinkmill.com.au/">
-  <img src=".github/keystatic-banner.svg" alt="Keystatic">
-  </br>
-  </br>
-</a>
+<!-- prettier-ignore-start -->
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/plus-banner-dark.svg">
+  <img src=".github/plus-banner-light.svg" alt="Keystatic Plus: an editor for writers, built on Keystatic">
+</picture>
+
 <p>
-  <a aria-label="NPM version" href="https://www.npmjs.com/package/@keystatic/core">
-    <img alt="" src="https://img.shields.io/npm/v/@keystatic/core.svg?style=for-the-badge&labelColor=0869B8">
-  </a>
-  <a aria-label="Twitter Logo" href="https://twitter.com/thekeystatic">
-    <img src="https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white&labelColor=007BCE">
-  </a>
-  <a aria-label="Website" href="https://keystatic.thinkmill.com.au/">
-    <img src="https://img.shields.io/badge/Website-2F6BFF.svg?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiNmZmZmZmYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBjbGFzcz0iZmVhdGhlciBmZWF0aGVyLWdsb2JlIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIxMCI+PC9jaXJjbGU+PGxpbmUgeDE9IjIiIHkxPSIxMiIgeDI9IjIyIiB5Mj0iMTIiPjwvbGluZT48cGF0aCBkPSJNMTIgMmExNS4zIDE1LjMgMCAwIDEgNCAxMCAxNS4zIDE1LjMgMCAwIDEtNCAxMCAxNS4zIDE1LjMgMCAwIDEtNC0xMCAxNS4zIDE1LjMgMCAwIDEgNC0xMHoiPjwvcGF0aD48L3N2Zz4=&labelColor=0737ad&locoColor=white&logoWidth=0">
-  </a>
-  <a aria-label="Thinkmill Logo" href="https://www.thinkmill.com.au/open-source?utm_campaign=github-keystatic">
-    <img src="https://img.shields.io/badge/A%20Thinkmill%20Project-ed0000.svg?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTg2IiBoZWlnaHQ9IjU4NiIgdmlld0JveD0iMCAwIDU4NiA1ODYiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMF8xOTk2XzQwNikiPgo8cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTU4NiAyOTNDNTg2IDQ1NC44MTkgNDU0LjgxOSA1ODYgMjkzIDU4NkMxMzEuMTgxIDU4NiAwIDQ1NC44MTkgMCAyOTNDMCAxMzEuMTgxIDEzMS4xODEgMCAyOTMgMEM0NTQuODE5IDAgNTg2IDEzMS4xODEgNTg2IDI5M1pNMjA1Ljc3NiAzNTguOTQ0QzE5MS4zNzYgMzU4Ljk0NCAxODUuOTA0IDM1Mi4zMiAxODUuOTA0IDMzNS45MDRWMjYyLjc1MkgyMTQuNDE2VjIzNy42OTZIMTg1LjkwNFYyMDEuMTJIMTUzLjA3MlYyMzcuNjk2SDEyOC41OTJWMjYyLjc1MkgxNTMuMDcyVjM0MC44QzE1My4wNzIgMzcyLjc2OCAxNjYuNjA4IDM4NS43MjggMTk3LjQyNCAzODUuNzI4QzIwMy40NzIgMzg1LjcyOCAyMTAuOTYgMzg0LjU3NiAyMTUuODU2IDM4My4xMzZWMzU3LjUwNEMyMTMuNTUyIDM1OC4zNjggMjA5LjUyIDM1OC45NDQgMjA1Ljc3NiAzNTguOTQ0Wk00MDcuMzc2IDIzNC4yNEMzODUuMiAyMzQuMjQgMzcxLjA4OCAyNDQuMDMyIDM2MC40MzIgMjYwLjczNkMzNTIuOTQ0IDI0My40NTYgMzM3LjM5MiAyMzQuMjQgMzE3LjIzMiAyMzQuMjRDMjk5Ljk1MiAyMzQuMjQgMjg2Ljk5MiAyNDEuMTUyIDI3Ni42MjQgMjU1LjI2NEgyNzYuMDQ4VjIzNy42OTZIMjQ0LjY1NlYzODRIMjc3LjQ4OFYzMDUuNjY0QzI3Ny40ODggMjc3LjQ0IDI4OC43MiAyNjAuNzM2IDMwOC4zMDQgMjYwLjczNkMzMjUuMjk2IDI2MC43MzYgMzM0LjUxMiAyNzIuODMyIDMzNC41MTIgMjkzLjU2OFYzODRIMzY3LjM0NFYzMDUuMDg4QzM2Ny4zNDQgMjc3LjE1MiAzNzguODY0IDI2MC43MzYgMzk4LjE2IDI2MC43MzZDNDE0LjU3NiAyNjAuNzM2IDQyNC42NTYgMjcxLjEwNCA0MjQuNjU2IDI5Ny4wMjRWMzg0SDQ1Ny40ODhWMjkzLjg1NkM0NTcuNDg4IDI1NC40IDQzOC40OCAyMzQuMjQgNDA3LjM3NiAyMzQuMjRaIiBmaWxsPSJ3aGl0ZSIvPgo8L2c+CjxkZWZzPgo8Y2xpcFBhdGggaWQ9ImNsaXAwXzE5OTZfNDA2Ij4KPHJlY3Qgd2lkdGg9IjU4NiIgaGVpZ2h0PSI1ODYiIGZpbGw9IndoaXRlIi8+CjwvY2xpcFBhdGg+CjwvZGVmcz4KPC9zdmc+Cg==&labelColor=C60200&locoColor=white&logoWidth=0">
-  </a>
+  <a href="https://www.npmjs.com/package/@teszerrakt/keystatic-core"><img alt="npm version" src="https://img.shields.io/npm/v/@teszerrakt/keystatic-core?label=npm&color=2F4AD0"></a>
+  <a href="https://github.com/teszerrakt/keystatic/releases"><img alt="latest release" src="https://img.shields.io/github/v/release/teszerrakt/keystatic?label=release&color=2F4AD0"></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2F4AD0"></a>
 </p>
 
----
+A fork of [Keystatic](https://github.com/Thinkmill/keystatic), the git-based CMS by Thinkmill, that adds an editor for writers. Keystatic's core is Thinkmill's work; Plus builds on it and tracks its releases.
 
-First-class CMS experience, TypeScript API, Markdown & YAML/JSON based, no DB.
+**Latest:** [`0.6.9-plus.1.0.0`](https://github.com/teszerrakt/keystatic/releases/tag/v0.6.9-plus.1.0.0), on Keystatic 0.6.9 · [Sandbox site](https://keystatic-plus-sandbox.vercel.app) ([source](https://github.com/teszerrakt/keystatic-plus-sandbox))
 
-Built with DNA from Keystone, connects directly to GitHub and doesn’t mess with
-your source code. Conceived for modern front-end frameworks like Next.js, Remix
-and Astro, designed to fit into your workflow.
+## Install
 
-## Status
+```sh
+npm install @keystatic/core@npm:@teszerrakt/keystatic-core@0.6.9-plus.1.0.0
+```
 
-We're working on it! Things are experimental at the moment.
+The `npm:` alias keeps every `@keystatic/core` import and integration (`@keystatic/astro`, `@keystatic/next`) working. It brings the fork's design system, `@teszerrakt/keystar-ui`, with it. Pin the exact version: semver ranges skip prerelease versions.
 
-But if you're curious and brave, check out
-[keystatic.com](https://keystatic.com) to try it out (and check out our growing
-collection of templates).
+With pnpm's `minimumReleaseAge`, add both packages to `minimumReleaseAgeExclude` so a new release installs the day it ships.
 
-Follow [@thekeystatic](https://twitter.com/thekeystatic) on Twitter, and
-[subscribe to our mailing list](https://keystatic.com/#mailing-list) for
-updates.
+Everything in [Keystatic's docs](https://keystatic.com/docs/introduction) still applies. The sections below cover what Plus adds.
 
-Feedback on how we're going, what you're looking for, and what you'd like to see
-next is super helpful as we progress!
-[Join the discussion on GitHub](https://github.com/Thinkmill/keystatic/discussions)
+## What Plus adds
 
----
+These apply to GitHub storage. Local storage keeps Keystatic's own editor.
 
-## Developing Keystatic
+### An editor for writers
 
-If you want to try Keystatic, we recommend following our
-[guides](https://keystatic.com/docs/introduction) or using the CLI rather than
-running the dev projects in this repo.
+- **Home:** your drafts, shortcuts to start or edit a page, and what was published recently.
+- **Pages:** one list across every language, with each page's languages and which ones are missing or stale.
+- **Page languages:** collections grouped by language in `ui.navigation` are treated as one page in several languages.
+- **Menu sections:** writers edit the docs menu's sections, and place a page in the menu from the page itself.
+- **Delete a page** in this language or every language, with a warning about pages that link to it.
 
-They're intended for testing and developing features, and aren't great examples
-of actual Keystatic projects.
+```ts
+import { fields } from '@keystatic/core';
 
-However, if you want to spin up Keystatic for local development in the monorepo,
-you can! Run the following:
+const menuFields = {
+  section: fields.menuSection({
+    label: 'Menu section',
+    singleton: 'menuSections',
+    defaultValue: 'getting-started',
+  }),
+  sidebar: fields.object({
+    order: fields.menuOrder({ label: 'Place in the menu' }),
+  }),
+};
+```
+
+### An image library
+
+`library: true` on a content field's image option turns on the **Images** page: every picture in the folder, where each is used, uploads, replace, remove with Undo and default alt text. Writers embed a library picture by reference instead of copying it into the page's folder.
+
+```ts
+content: fields.markdoc({
+  label: 'Content',
+  options: {
+    image: {
+      directory: 'src/assets/images/docs',
+      publicPath: '../../assets/images/docs/',
+      library: true,
+    },
+  },
+}),
+```
+
+### Drafts, or saves that go live at once
+
+`storage.drafts` picks how saving works.
+
+- **On:** every save goes into a draft branch. A draft bar follows it through saving, building the preview and publishing. **Review & publish** lists every change and checks links; **Publish now** ships a one-page fix in one step. Publishing merges the draft's pull request once the repository's required checks pass.
+- **Off (default):** every save goes live at once, and the save button reads **Publish**.
+
+```ts
+storage: {
+  kind: 'github',
+  repo: 'owner/site',
+  drafts: true,
+  branchPrefix: 'draft/',
+  draftPreviewUrl: 'https://{alias}.preview.example.com', // {alias}: draft/a-page → draft-a-page
+  siteUrl: 'https://example.com',
+},
+```
+
+### Draft previews from your host
+
+`storage.preview` reads a draft's build from GitHub. The default, `autoPreview()`, uses Cloudflare Workers Builds check runs when they are there, else GitHub deployments (Vercel, Netlify and most hosts), whose own address replaces the `draftPreviewUrl` pattern. Pass `cloudflarePreview()`, `githubDeploymentsPreview()` or your own plug-in to choose.
+
+```ts
+import { githubDeploymentsPreview } from '@keystatic/core';
+
+storage: {
+  kind: 'github',
+  repo: 'owner/site',
+  drafts: true,
+  preview: githubDeploymentsPreview(),
+},
+```
+
+### Sign-in plug-in
+
+`storage.auth` swaps GitHub sign-in for your own, for example a company login whose server holds the GitHub App. It defaults to `githubAuth()`.
+
+## Versions
+
+Versions read `<upstream version>-plus.<major>.<minor>.<patch>`. The base is the Keystatic release Plus is built on; the part after `-plus.` follows semver for the fork's own changes, so a breaking Plus change bumps its major. Each release's notes are on [GitHub Releases](https://github.com/teszerrakt/keystatic/releases).
+
+## Developing
+
+You need Node.js 24 and pnpm 11 ([corepack](https://nodejs.org/api/corepack.html) picks the right pnpm).
 
 ```sh
 pnpm install
-cd dev-projects/{example}
-pnpm run dev
+pnpm build:packages
+pnpm test
 ```
 
-### Requirements
-
-- node.js v18
-- pnpm
-
-Note: if you are getting an error with `pnpm`, make sure you're using
-[corepack](https://nodejs.org/api/corepack.html), uninstall pnpm, and then run
-`corepack enable pnpm`.
-
----
+- `plus` is the fork's branch; `main` mirrors Thinkmill's `main`, and upstream releases merge from there into `plus`.
+- Fork code lives in `packages/keystatic/src/app/plus/`; upstream files only get small hooks, so upstream merges stay small.
+- Every pull request publishes a build to [pkg.pr.new](https://pkg.pr.new). Every pull request also shows proof of the change working: see [`AGENTS.md`](AGENTS.md).
+- `node scripts/plus-pack.mjs <version>` packs a release of both packages.
 
 ## License
 
-Copyright (c) 2023
-[Thinkmill Labs](https://www.thinkmill.com.au/labs?utm_campaign=github-keystatic)
-Pty Ltd. Licensed under the MIT License.
+MIT, as upstream. Keystatic is copyright (c) 2023 [Thinkmill Labs](https://www.thinkmill.com.au/labs) Pty Ltd. See [`LICENSE`](LICENSE).
+<!-- prettier-ignore-end -->
