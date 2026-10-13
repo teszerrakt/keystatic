@@ -31,6 +31,7 @@ import {
   draftTitle,
 } from './draft-status';
 import { saveHandoff } from './new-draft';
+import { isPublishNow, publishNowNote } from './publish-now';
 
 // Cloudflare names a branch preview after the branch: lowercase, anything
 // else becomes a dash. Used until the build's own check run names it.
@@ -89,6 +90,7 @@ const DraftsQuery = gql`
             nodes {
               id
               number
+              body
               autoMergeRequest {
                 enabledAt
               }
@@ -156,6 +158,16 @@ const MergePullRequest = gql`
   }
 ` as import('../../../__generated__/ts-gql/PlusMergePullRequest').type;
 
+const UpdatePullRequestBody = gql`
+  mutation PlusUpdatePullRequestBody($id: ID!, $body: String!) {
+    updatePullRequest(input: { pullRequestId: $id, body: $body }) {
+      pullRequest {
+        id
+      }
+    }
+  }
+` as import('../../../__generated__/ts-gql/PlusUpdatePullRequestBody').type;
+
 const DeleteDraft = gql`
   mutation PlusDeleteDraft($id: ID!) {
     deleteRef(input: { refId: $id }) {
@@ -210,14 +222,13 @@ function useDraftList(head: string | undefined, branch: string) {
   const config = useConfig();
   const repoInfo = useRepoInfo();
   const prefix = draftPrefix(config);
+  const client = useClient();
+  const owner = repoInfo?.upstream.owner ?? '';
+  const name = repoInfo?.upstream.name ?? '';
   const [result, refetch] = useQuery({
     query: DraftsQuery,
     pause: !repoInfo || !isDraftsOnly(config),
-    variables: {
-      owner: repoInfo?.upstream.owner ?? '',
-      name: repoInfo?.upstream.name ?? '',
-      query: prefix,
-    },
+    variables: { owner, name, query: prefix },
     requestPolicy: 'cache-and-network',
   });
 
@@ -255,7 +266,12 @@ function useDraftList(head: string | undefined, branch: string) {
         alias: fromCheck ?? previewAlias(ref.name),
         failureUrl: runs.find(failed)?.detailsUrl ?? undefined,
         pr: pr
-          ? { id: pr.id, number: pr.number, queued: !!pr.autoMergeRequest }
+          ? {
+              id: pr.id,
+              number: pr.number,
+              queued: !!pr.autoMergeRequest,
+              now: isPublishNow(pr.body),
+            }
           : undefined,
       });
     }
@@ -291,16 +307,30 @@ function useDraftList(head: string | undefined, branch: string) {
     () => refetch({ requestPolicy: 'network-only' }),
     [refetch]
   );
-  return { drafts, published, missing, refresh };
+  // Resolves once the list holds GitHub's answer.
+  const reload = useCallback(
+    () =>
+      client
+        .query(
+          DraftsQuery,
+          { owner, name, query: prefix },
+          { requestPolicy: 'network-only' }
+        )
+        .toPromise(),
+    [client, owner, name, prefix]
+  );
+  return { drafts, published, missing, refresh, reload };
 }
 
 type PublishState =
   | { kind: 'idle' }
-  | { kind: 'working' }
+  | { kind: 'working'; now: boolean }
   | { kind: 'done' }
   | { kind: 'error'; message: string };
 
-function usePublish(draft: Draft | undefined, onDone: () => void) {
+type Publishable = { name: string; pr?: Draft['pr'] };
+
+function usePublish(onDone: () => void, reload: () => Promise<unknown>) {
   const client = useClient();
   const viewer = useViewer();
   const repoInfo = useRepoInfo();
@@ -343,11 +373,19 @@ function usePublish(draft: Draft | undefined, onDone: () => void) {
     return false;
   }
 
-  async function publish() {
+  async function publish(draft: Publishable | undefined, now = false) {
     if (!draft || !repoInfo) return;
-    setState({ kind: 'working' });
+    setState({ kind: 'working', now });
     try {
+      const body = now ? publishNowNote : 'Published from the docs editor.';
       let id = draft.pr?.id;
+      if (id && !!draft.pr?.now !== now) {
+        // A pull request left open by the other kind of publish.
+        const updated = await client
+          .mutation(UpdatePullRequestBody, { id, body })
+          .toPromise();
+        if (updated.error) throw updated.error;
+      }
       if (!id) {
         const created = await client
           .mutation(CreatePullRequest, {
@@ -356,7 +394,7 @@ function usePublish(draft: Draft | undefined, onDone: () => void) {
               baseRefName: repoInfo.defaultBranch,
               headRefName: draft.name,
               title: draftTitle(draft.name, draftPrefix(config)),
-              body: 'Published from the docs editor.',
+              body,
             },
           })
           .toPromise();
@@ -370,26 +408,37 @@ function usePublish(draft: Draft | undefined, onDone: () => void) {
         .toPromise();
       // Auto-merge refuses a pull request that can merge already, and is
       // off on repos without branch protection: merge now when GitHub allows.
+      // Publish now never does: GitHub reports CLEAN before any check has
+      // started, and only auto-merge waits for one (D1).
       if (queued.error) {
-        if (!(await canMergeNow(id))) throw queued.error;
+        if (now || !(await canMergeNow(id))) throw queued.error;
         const merged = await client
           .mutation(MergePullRequest, { id, ...message })
           .toPromise();
         if (merged.error) throw merged.error;
       }
+      // Publish now stays working until the list shows the queued pull
+      // request, so its bar never drops back to the preview steps.
+      if (now) await reload().catch(() => {});
       setState({ kind: queued.error ? 'done' : 'idle' });
-      onDone();
+      if (!now) onDone();
     } catch (e) {
-      setState({ kind: 'error', message: explain((e as Error).message) });
+      setState({
+        kind: 'error',
+        message: explain((e as Error).message, now),
+      });
     }
   }
   return [state, publish, () => setState({ kind: 'idle' })] as const;
 }
 
-function explain(message: string) {
+function explain(message: string, now = false) {
   const m = message.replace(/^\[GraphQL\] /, '');
   if (/auto-merge is not allowed|not enabled for this repository/i.test(m)) {
     return 'Publishing is switched off for this repository. Ask an admin to allow auto-merge in its GitHub settings.';
+  }
+  if (now && /is in (clean|unstable) status/i.test(m)) {
+    return 'This site has no check for Publish now to wait for. Use Publish… in the bar above.';
   }
   if (/no commits between/i.test(m)) {
     return 'This draft has no changes yet. Save a page first.';
@@ -450,6 +499,10 @@ type DraftsValue = {
   dismissPublished: () => void;
   publishState: PublishState;
   publish: () => void;
+  // Publishes `branch` without waiting for its preview; checks still apply.
+  publishNow: (branch: string) => Promise<void>;
+  // Which publish is running on the open draft, if any.
+  publishing: 'review' | 'now' | null;
   discard: (draft: Draft) => Promise<void>;
   title: (branch: string) => string;
   // Where "Back to editing" goes from the review page.
@@ -489,9 +542,11 @@ function DraftsProviderInner(props: { children: ReactNode }) {
   const list = useDraftList(head, branch);
   const current = list.drafts.find(d => d.name === branch);
   const [publishState, publish, resetPublish] = usePublish(
-    current,
-    list.refresh
+    list.refresh,
+    list.reload
   );
+  const latest = useRef(list.drafts);
+  latest.current = list.drafts;
   const [saving, setSaving] = useState<Saving | null>(null);
   const [handoff] = useState(saveHandoff);
   const [published, setPublished] = useState<Published | null>(null);
@@ -599,10 +654,24 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     }
   };
 
+  const status = draftStatus(current);
+  // A failed check leaves an ordinary draft.
+  const publishing = onLive
+    ? null
+    : publishState.kind === 'working'
+    ? publishState.now
+      ? 'now'
+      : 'review'
+    : status === 'publishing'
+    ? current?.pr?.now
+      ? 'now'
+      : 'review'
+    : null;
+
   const value: DraftsValue = {
     drafts: list.drafts.filter(d => !discarded.includes(d.name)),
     current,
-    status: draftStatus(current),
+    status,
     onLive,
     saving,
     setSaving,
@@ -611,8 +680,16 @@ function DraftsProviderInner(props: { children: ReactNode }) {
     publishState,
     publish: () => {
       setPublished(null);
-      publish();
+      publish(current);
     },
+    publishNow: name => {
+      setPublished(null);
+      return publish(
+        latest.current.find(d => d.name === name) ?? { name },
+        true
+      );
+    },
+    publishing,
     discard,
     title,
     editHref,

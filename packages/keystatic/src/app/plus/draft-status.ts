@@ -11,7 +11,9 @@ export type Draft = {
   checks: Build;
   alias: string;
   failureUrl: string | undefined;
-  pr: { id: string; number: number; queued: boolean } | undefined;
+  pr:
+    | { id: string; number: number; queued: boolean; now?: boolean }
+    | undefined;
 };
 
 export type DraftStatus = 'building' | 'ready' | 'failed' | 'publishing';
