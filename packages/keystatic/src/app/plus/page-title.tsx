@@ -31,7 +31,7 @@ import {
 } from './page-languages';
 import { useLanguages } from './pages-data';
 import { pageFile } from './review-data';
-import { isDraftsOnly } from './drafts';
+import { hasDrafts } from './drafts';
 import { translateFrom, translateHref } from './translate';
 
 const crumb = css({
@@ -217,7 +217,7 @@ export function pageTitleFrom(
   return typeof value?.name === 'string' && value.name ? value.name : slug;
 }
 
-// "Pages › <title> [language]" on a page in drafts-only mode.
+// "Pages › <title> [language]" on a page in drafts mode.
 export function PageTitle(props: {
   collection: string;
   slug: string;
@@ -258,7 +258,7 @@ export function useCreateBreadcrumbs(collection: string, basePath: string) {
   const config = useConfig();
   const router = useRouter();
   const languages = useLanguages();
-  if (!isDraftsOnly(config)) return null;
+  if (!hasDrafts(config)) return null;
   const language = languages.find(l => l.collection === collection)?.language;
   return [
     { key: 'collection', label: 'Pages', href: `${basePath}/pages` },

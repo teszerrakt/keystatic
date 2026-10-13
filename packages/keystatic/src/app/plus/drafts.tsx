@@ -13,8 +13,8 @@ import { getBranchPrefix } from '../utils';
 import { useCreateDraft } from './draft-commit';
 import { useDraftsContext } from './draft-data';
 
-export function isDraftsOnly(config: Config) {
-  return config.storage.kind !== 'local' && !!config.storage.draftsOnly;
+export function hasDrafts(config: Config) {
+  return config.storage.kind !== 'local' && !!config.storage.drafts;
 }
 
 export function draftPrefix(config: Config) {
@@ -49,7 +49,7 @@ export function useNewDraftName() {
 export function BranchDialogContainer(
   props: ComponentProps<typeof DialogContainer>
 ) {
-  return isDraftsOnly(useConfig()) ? (
+  return hasDrafts(useConfig()) ? (
     <>{props.children}</>
   ) : (
     <DialogContainer {...props} />
@@ -110,7 +110,7 @@ export function useDraftSaveCopy() {
   const config = useConfig();
   const branch = useCurrentBranch();
   const repoInfo = useRepoInfo();
-  if (!isDraftsOnly(config)) return null;
+  if (!hasDrafts(config)) return null;
   const live = branch === repoInfo?.defaultBranch;
   return {
     save: live ? 'Save as draft' : 'Save draft',

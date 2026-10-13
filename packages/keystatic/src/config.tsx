@@ -52,8 +52,8 @@ type CommonConfig<Collections, Singletons> = {
 type CommonRemoteStorageConfig = {
   pathPrefix?: string;
   branchPrefix?: string;
-  /** Plus fork: saves on the default branch go to a new `branchPrefix` branch, and the picker hides the default branch. */
-  draftsOnly?: boolean;
+  /** Plus fork: off by default (standard Keystatic saves). On: saves on the default branch go to a new `branchPrefix` branch, and the picker hides the default branch. */
+  drafts?: boolean;
   /** Plus fork: a draft's preview site. `{alias}` becomes the branch as the host names its preview (`draft/a` → `draft-a`). */
   draftPreviewUrl?: string;
   /** Plus fork: the live site, e.g. `https://docs.example.com`. Links a published page. */

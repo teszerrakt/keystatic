@@ -107,7 +107,7 @@ export function serializeEntryToFiles(args: {
   ];
 }
 
-export const draftsOnlyReason =
+export const draftsReason =
   'The live site is never edited directly. This change is saved as a draft.';
 
 export function useUpsertItem(args: {
@@ -228,7 +228,7 @@ export function useUpsertItem(args: {
           }));
           if (
             !override &&
-            args.config.storage.draftsOnly &&
+            args.config.storage.drafts &&
             currentBranch === repoInfo.defaultBranch
           ) {
             handoff?.stage(baseCommit, {
@@ -236,7 +236,7 @@ export function useUpsertItem(args: {
               additions: encoded,
               deletions,
             });
-            setState({ kind: 'needs-new-branch', reason: draftsOnlyReason });
+            setState({ kind: 'needs-new-branch', reason: draftsReason });
             return false;
           }
           if (override && handoff?.take(override.branch)) {

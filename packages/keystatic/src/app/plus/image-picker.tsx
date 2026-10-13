@@ -33,7 +33,7 @@ import {
 } from '../shell/data';
 import { fetchBlob } from '../useItemData';
 import { branchHref } from './draft-data';
-import { isDraftsOnly } from './drafts';
+import { hasDrafts } from './drafts';
 import {
   ImageCard,
   imageGrid,
@@ -432,7 +432,7 @@ function ImagePicker(
           </TabPanels>
         </Tabs>
       </Content>
-      {isDraftsOnly(config) && (
+      {hasDrafts(config) && (
         <Footer>
           <TextLink href={`${branchHref(branch)}/images`} target="_blank">
             Manage images

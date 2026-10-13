@@ -1,5 +1,5 @@
 import { Config } from '../../config';
-import { isDraftsOnly } from './drafts';
+import { hasDrafts } from './drafts';
 import { HomePage } from './home-page';
 import { ImagesPage } from './images-page';
 import { PagesPage } from './pages-page';
@@ -26,7 +26,7 @@ type Params = {
 export function plusRoute(config: Config, params: Params) {
   if (params.plus === 'publish') return <ReviewPage />;
   if (params.plus === 'pages') return <PagesPage />;
-  if (!isDraftsOnly(config)) return null;
+  if (!hasDrafts(config)) return null;
   if (params.plus === 'menu-sections') return <MenuSectionsPage />;
   if (params.plus === 'images') return <ImagesPage />;
   if (params.singleton && params.singleton === menuSetup(config)?.singleton) {

@@ -42,7 +42,7 @@ import { GitMenu, ThemeMenu, UserActions } from './components';
 import { BranchPicker } from '../../branch-selection';
 import { DraftNav } from '../../plus/draft-nav';
 import { DraftSwitcher } from '../../plus/draft-switcher';
-import { isDraftsOnly } from '../../plus/drafts';
+import { hasDrafts } from '../../plus/drafts';
 import { useAppState, useConfig } from '../context';
 
 const SidebarContext = createContext<OverlayTriggerState | null>(null);
@@ -81,7 +81,7 @@ export function SidebarProvider(props: { children: ReactNode }) {
 }
 
 function Nav() {
-  return isDraftsOnly(useConfig()) ? <DraftNav /> : <SidebarNav />;
+  return hasDrafts(useConfig()) ? <DraftNav /> : <SidebarNav />;
 }
 
 export function SidebarPanel() {
@@ -158,7 +158,7 @@ function SidebarGitActions() {
   if (isLocalConfig(config)) {
     return null;
   }
-  if (isDraftsOnly(config)) {
+  if (hasDrafts(config)) {
     return <DraftSwitcher />;
   }
   return (

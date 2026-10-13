@@ -22,7 +22,7 @@ import {
   useRepoInfo,
 } from '../shell/data';
 import { useViewer } from '../shell/viewer-data';
-import { draftPrefix, isDraftsOnly } from './drafts';
+import { draftPrefix, hasDrafts } from './drafts';
 import {
   Build,
   Draft,
@@ -227,7 +227,7 @@ function useDraftList(head: string | undefined, branch: string) {
   const name = repoInfo?.upstream.name ?? '';
   const [result, refetch] = useQuery({
     query: DraftsQuery,
-    pause: !repoInfo || !isDraftsOnly(config),
+    pause: !repoInfo || !hasDrafts(config),
     variables: { owner, name, query: prefix },
     requestPolicy: 'cache-and-network',
   });
@@ -521,7 +521,7 @@ export function useDraftsContext() {
 
 export function DraftsProvider(props: { children: ReactNode }) {
   const config = useConfig();
-  return isDraftsOnly(config) ? (
+  return hasDrafts(config) ? (
     <DraftsProviderInner>{props.children}</DraftsProviderInner>
   ) : (
     props.children
