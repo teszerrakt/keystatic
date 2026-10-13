@@ -1,3 +1,39 @@
+# Keystatic plus
+
+A fork of [Keystatic](https://github.com/Thinkmill/keystatic) that adds an
+editor for writers. Keystatic's core is Thinkmill's work; plus builds on it and
+tracks its releases.
+
+**Latest:**
+[`0.6.9-plus.1.0.0`](https://github.com/teszerrakt/keystatic/releases/tag/v0.6.9-plus.1.0.0),
+on Keystatic 0.6.9
+
+```sh
+npm install @keystatic/core@npm:@teszerrakt/keystatic-core@0.6.9-plus.1.0.0
+```
+
+The `npm:` alias keeps every `@keystatic/core` import working. Pin the exact
+version: semver ranges skip prerelease versions.
+
+With GitHub storage, plus adds:
+
+- **Writer editor:** Home, one Pages list across languages, page languages, menu
+  sections.
+- **Images page:** a shared picture library to upload, replace, remove and embed
+  by reference.
+- **`storage.drafts`:** on, every save goes into a draft with a preview, Review
+  & publish and Publish now. Off (default), every save goes live at once.
+- **`storage.preview`:** draft previews from Cloudflare Workers Builds, GitHub
+  deployments (Vercel, Netlify) or your own plug-in.
+
+Versions read `<upstream version>-plus.<major>.<minor>.<patch>`. Try it on the
+[sandbox site](https://keystatic-plus-sandbox.vercel.app)
+([source](https://github.com/teszerrakt/keystatic-plus-sandbox)).
+
+Upstream Keystatic's README follows.
+
+---
+
 <a href="https://keystatic.thinkmill.com.au/">
   <img src=".github/keystatic-banner.svg" alt="Keystatic">
   </br>
