@@ -19,3 +19,13 @@ export type {
 } from './config';
 export { githubAuth } from './app/plus/auth';
 export type { AuthPlugin } from './app/plus/auth';
+export {
+  autoPreview,
+  cloudflarePreview,
+  githubDeploymentsPreview,
+} from './app/plus/preview';
+export type {
+  PreviewPlugin,
+  PreviewSignals,
+  PreviewState,
+} from './app/plus/preview';
