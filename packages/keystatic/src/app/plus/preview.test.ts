@@ -121,8 +121,7 @@ test('a site can plug in its own provider', () => {
 });
 
 test('a reported address replaces the pattern host and keeps the page path', () => {
-  // Collection keys narrow the type; helpers take the general Config.
-  const site = config({
+  const site: Config = {
     storage: {
       kind: 'github',
       repo: 'o/r',
@@ -138,7 +137,7 @@ test('a reported address replaces the pattern host and keeps the page path', () 
         schema: { title: fields.slug({ name: { label: 'Title' } }) },
       }),
     },
-  }) as unknown as Config;
+  };
   const draft: Draft = {
     name: branch,
     refId: 'r',
