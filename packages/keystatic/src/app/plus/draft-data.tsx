@@ -22,7 +22,7 @@ import {
   useRepoInfo,
 } from '../shell/data';
 import { useViewer } from '../shell/viewer-data';
-import { draftPrefix, isDraftsOnly } from './drafts';
+import { draftPrefix, hasDrafts } from './drafts';
 import {
   Build,
   Draft,
@@ -227,7 +227,7 @@ function useDraftList(head: string | undefined, branch: string) {
   const name = repoInfo?.upstream.name ?? '';
   const [result, refetch] = useQuery({
     query: DraftsQuery,
-    pause: !repoInfo || !isDraftsOnly(config),
+    pause: !repoInfo || !hasDrafts(config),
     variables: { owner, name, query: prefix },
     requestPolicy: 'cache-and-network',
   });
@@ -521,11 +521,29 @@ export function useDraftsContext() {
 
 export function DraftsProvider(props: { children: ReactNode }) {
   const config = useConfig();
-  return isDraftsOnly(config) ? (
+  return hasDrafts(config) ? (
     <DraftsProviderInner>{props.children}</DraftsProviderInner>
   ) : (
     props.children
   );
+}
+
+// Refetches the repo, so a page opened after a commit shows it.
+export function useReloadShell() {
+  const config = useConfig();
+  const client = useClient();
+  const repoInfo = useRepoInfo();
+  return useCallback(async () => {
+    if (!repoInfo) return;
+    const repo =
+      config.storage.kind === 'github'
+        ? parseRepoConfig(config.storage.repo)
+        : { owner: repoInfo.owner, name: repoInfo.name };
+    await client
+      .query(GitHubAppShellQuery, repo, { requestPolicy: 'network-only' })
+      .toPromise()
+      .catch(() => {});
+  }, [client, config, repoInfo]);
 }
 
 export const branchHref = (branch: string) =>
@@ -564,21 +582,14 @@ function DraftsProviderInner(props: { children: ReactNode }) {
 
   // The shell caches every branch head; refresh it before leaving a branch
   // that was just merged or deleted, or the live page opens stale.
+  const reload = useReloadShell();
   const leaveTo = useCallback(
     async (href: string) => {
-      if (!repoInfo) return;
-      const repo =
-        config.storage.kind === 'github'
-          ? parseRepoConfig(config.storage.repo)
-          : { owner: repoInfo.owner, name: repoInfo.name };
-      await client
-        .query(GitHubAppShellQuery, repo, { requestPolicy: 'network-only' })
-        .toPromise()
-        .catch(() => {});
+      await reload();
       list.refresh();
       router.push(href);
     },
-    [client, config, repoInfo, router, list]
+    [reload, router, list]
   );
 
   // The first save is done once the new branch has moved past its base.

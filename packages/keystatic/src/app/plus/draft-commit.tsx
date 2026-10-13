@@ -7,9 +7,10 @@ import {
   useCreateBranchMutation,
 } from '../branch-selection';
 import { getPathPrefix } from '../path-utils';
+import { useRouter } from '../router';
 import { useConfig } from '../shell/context';
 import { useBranches, useCurrentBranch, useRepoInfo } from '../shell/data';
-import { useDraftsContext } from './draft-data';
+import { useDraftsContext, useReloadShell } from './draft-data';
 import { draftTitle } from './draft-status';
 import { draftPrefix } from './drafts';
 import { commitOnBase, DraftChanges } from './new-draft';
@@ -82,7 +83,8 @@ export function useCreateDraft() {
 }
 
 // Commits to the open draft, or on the live site starts the draft `newDraft`,
-// then reloads the shell and opens `href(branch)`.
+// then reloads the shell and opens `href(branch)`. Without drafts it commits
+// to the current branch, so the change goes live at once.
 export function useCommitToDraft() {
   const config = useConfig();
   const client = useClient();
@@ -91,6 +93,8 @@ export function useCommitToDraft() {
   const branch = useCurrentBranch();
   const drafts = useDraftsContext();
   const createDraft = useCreateDraft();
+  const reload = useReloadShell();
+  const router = useRouter();
   return async (input: {
     newDraft: string;
     message: DraftChanges['message'];
@@ -99,7 +103,7 @@ export function useCommitToDraft() {
     deletions?: string[];
     href: (branch: string) => string;
   }) => {
-    if (!repoInfo || !drafts) return;
+    if (!repoInfo) return;
     const prefix = getPathPrefix(config.storage) ?? '';
     const head = branches.get(branch)?.commitSha ?? '';
     const changes: DraftChanges = {
@@ -111,7 +115,7 @@ export function useCommitToDraft() {
       deletions: (input.deletions ?? []).map(p => ({ path: prefix + p })),
     };
     let target = branch;
-    if (branch === repoInfo.defaultBranch) {
+    if (drafts && branch === repoInfo.defaultBranch) {
       target = input.newDraft;
       await createDraft(target, head, changes);
     } else {
@@ -135,6 +139,11 @@ export function useCommitToDraft() {
         throw new Error(res.error.message.replace(/^\[GraphQL\] /, ''));
       }
     }
-    await drafts.leaveTo(input.href(target));
+    if (drafts) {
+      await drafts.leaveTo(input.href(target));
+    } else {
+      await reload();
+      router.push(input.href(target));
+    }
   };
 }

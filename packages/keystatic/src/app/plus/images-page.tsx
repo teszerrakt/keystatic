@@ -130,7 +130,9 @@ function RemoveImageDialog(props: {
             </>
           )}
           <Text>
-            {drafts?.onLive ? (
+            {!drafts ? (
+              <>This goes live at once.</>
+            ) : drafts.onLive ? (
               <>
                 This starts a new draft, <strong>{draftName}</strong>. Inside a
                 draft, it joins that draft instead.
@@ -164,7 +166,7 @@ function RemoveImageDialog(props: {
             }
           }}
         >
-          {working ? 'Removing…' : 'Remove in draft'}
+          {working ? 'Removing…' : drafts ? 'Remove in draft' : 'Remove'}
         </Button>
       </ButtonGroup>
     </Dialog>
@@ -338,6 +340,7 @@ function ImageDetails(props: {
 let uploadIds = 0;
 
 export function ImagesPage() {
+  const drafts = useDraftsContext();
   const branch = useCurrentBranch();
   const trees = useTree();
   const library = useLibrary();
@@ -450,7 +453,7 @@ export function ImagesPage() {
         headline: `Restore ${image.path}`,
         additions: [{ path: image.path, contents: bytes }],
       },
-      `“${image.name}” is back in this draft.`
+      `“${image.name}” is ${drafts ? 'back in this draft' : 'restored'}.`
     )
   );
 
@@ -461,12 +464,15 @@ export function ImagesPage() {
       deletions: [image.path],
     });
     setSelected(null);
-    toastQueue.neutral(`“${image.name}” is removed in this draft.`, {
-      actionLabel: 'Undo',
-      onAction: () => restore(image, bytes),
-      shouldCloseOnAction: true,
-      timeout: 10000,
-    });
+    toastQueue.neutral(
+      `“${image.name}” is removed${drafts ? ' in this draft' : ''}.`,
+      {
+        actionLabel: 'Undo',
+        onAction: () => restore(image, bytes),
+        shouldCloseOnAction: true,
+        timeout: 10000,
+      }
+    );
   };
 
   const replace = async (image: LibraryImage, file: File) => {
@@ -492,7 +498,7 @@ export function ImagesPage() {
           },
         ],
       },
-      `“${image.name}” is replaced in this draft.`
+      `“${image.name}” is replaced${drafts ? ' in this draft' : ''}.`
     );
   };
 

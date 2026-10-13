@@ -56,7 +56,8 @@ import { ForkRepoDialog } from './fork-repo';
 import {
   AutoDraftBranchDialog,
   BranchDialogContainer,
-  isDraftsOnly,
+  hasDrafts,
+  hasPlusUi,
   useDraftSaveCopy,
 } from './plus/drafts';
 import { fillPreviewUrl, useDraftsContext } from './plus/draft-data';
@@ -288,7 +289,7 @@ function ItemPageInner(
             viewHref={viewHref}
             previewHref={previewHref}
             saveButton={
-              isDraftsOnly(config) ? (
+              hasDrafts(config) ? (
                 <SaveSplitButton
                   formID={formID}
                   isDisabled={isSavingDisabled}
@@ -304,7 +305,7 @@ function ItemPageInner(
               ) : undefined
             }
             deleteDialog={
-              isDraftsOnly(config) ? (
+              hasPlusUi(config) ? (
                 <DeletePageDialog
                   slug={itemSlug}
                   collection={collection}
@@ -836,7 +837,7 @@ type CreateBranchDuringUpdateDialogProps = {
 export function CreateBranchDuringUpdateDialog(
   props: CreateBranchDuringUpdateDialogProps
 ) {
-  return isDraftsOnly(useConfig()) ? (
+  return hasDrafts(useConfig()) ? (
     <AutoDraftBranchDialog {...props} />
   ) : (
     <NameBranchDuringUpdateDialog {...props} />
@@ -1154,7 +1155,7 @@ function ItemPageShell(
   return (
     <PageRoot containerWidth={containerWidthForEntryLayout(collectionConfig)}>
       <PageHeader>
-        {isDraftsOnly(props.config) ? (
+        {hasPlusUi(props.config) ? (
           <PageTitle
             collection={props.collection}
             slug={props.itemSlug}
