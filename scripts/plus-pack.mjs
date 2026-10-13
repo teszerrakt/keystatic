@@ -1,7 +1,9 @@
 // Packs packages/keystatic as @teszerrakt/keystatic-core and design-system/pkg
 // as @teszerrakt/keystar-ui without renaming them in the repo, so upstream
 // merges stay clean. Run `pnpm build:packages` first.
-// Usage: node scripts/plus-pack.mjs <version>   e.g. 0.6.9-plus.1
+// Usage: node scripts/plus-pack.mjs <version>   e.g. 0.6.9-plus.1.0.0
+// Version: <upstream core version>-plus.<major>.<minor>.<patch>. Bump major
+// on a breaking fork change; keep it when only the upstream base changes.
 import { execFileSync } from 'node:child_process';
 import {
   mkdtempSync,
@@ -18,7 +20,7 @@ if (!version) throw new Error('Usage: node scripts/plus-pack.mjs <version>');
 const suffix = version.slice(version.indexOf('-') + 1);
 if (!version.includes('-') || !suffix) {
   throw new Error(
-    `Expected a prerelease version like 0.6.9-plus.1, got ${version}`
+    `Expected a prerelease version like 0.6.9-plus.1.0.0, got ${version}`
   );
 }
 
