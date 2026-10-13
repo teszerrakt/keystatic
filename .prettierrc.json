@@ -11,6 +11,12 @@
       "options": {
         "proseWrap": "never"
       }
+    },
+    {
+      "files": ["AGENTS.md", "docs/agents/*.md", "agents/*.md"],
+      "options": {
+        "proseWrap": "never"
+      }
     }
   ]
 }
