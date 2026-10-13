@@ -29,5 +29,7 @@ passing checks.
   capture it. Show before and after when fixing a bug.
 - Anything else: the command output that proves it (tests, `tsc`, a reproduction
   before and after).
-- Upload images to a `verification/pr-<N>` branch here and link the raw URLs.
+- Upload images and videos with `pnpm proof <N> <file>...` in the sandbox: it
+  puts them in Cloudflare R2 and prints the Markdown. Never push a branch for
+  proof.
 - Never show company sites or content.
