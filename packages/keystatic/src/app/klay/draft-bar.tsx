@@ -295,7 +295,6 @@ export function DraftBar() {
   );
   const onPage = router.params[4] === 'item';
   const previewHref = current && previewHrefFor(config, current, router.params);
-  const publishing = status === 'publishing' || publishState.kind === 'working';
   const error =
     publishState.kind === 'error' ? (
       <Box paddingTop="regular">
@@ -350,18 +349,24 @@ export function DraftBar() {
     );
   }
 
-  if (publishing) {
+  if (drafts.publishing) {
+    const now = drafts.publishing === 'now';
     return (
       <Strip tone="accent">
         {title}
         <Steps>
           {[
             saved,
-            <Step key="build" state="done">
-              Preview ready
-            </Step>,
+            ...(now
+              ? []
+              : [
+                  <Step key="build" state="done">
+                    Preview ready
+                  </Step>,
+                ]),
             <Step key="publish" state="working">
-              Publishing · about 2 min · you can close this tab
+              {now ? 'Publishing now' : 'Publishing'} · about 2 min · you can
+              close this tab
             </Step>,
           ]}
         </Steps>

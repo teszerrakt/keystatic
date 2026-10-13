@@ -10,6 +10,7 @@ import {
   useDeferredValue,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import * as Y from 'yjs';
@@ -58,10 +59,11 @@ import {
   isDraftsOnly,
   useDraftSaveCopy,
 } from './klay/drafts';
-import { fillPreviewUrl } from './klay/draft-data';
+import { fillPreviewUrl, useDraftsContext } from './klay/draft-data';
 import { DeletePageDialog } from './klay/page-delete-dialog';
 import { PageFormProvider, useCommitExtras } from './klay/page-form';
 import { PageTitle, pageTitleFrom } from './klay/page-title';
+import { SaveSplitButton } from './klay/publish-now-button';
 import l10nMessages from './l10n';
 import { NotFoundBoundary, notFound } from './not-found';
 import { getDataFileExtension, getPathPrefix } from './path-utils';
@@ -178,7 +180,11 @@ function ItemPageInner(
       )}/create?duplicate=${itemSlug}`
     );
   };
-  const isSavingDisabled = updateResult.kind === 'loading' || !props.hasChanged;
+  const drafts = useDraftsContext();
+  const isSavingDisabled =
+    updateResult.kind === 'loading' ||
+    !props.hasChanged ||
+    drafts?.publishing === 'now';
 
   const onUpdate = useEventCallback(async () => {
     if (isSavingDisabled) return false;
@@ -196,6 +202,20 @@ function ItemPageInner(
       );
     }
     return hasUpdated;
+  });
+
+  // On the live site the save finishes in the new-draft dialog, so the
+  // intent has to outlive this call.
+  const publishAfterSave = useRef(false);
+  const save = useEventCallback((now: boolean) => {
+    publishAfterSave.current = now;
+    return onUpdate();
+  });
+  const onPublishNow = useEventCallback(async () => {
+    if (await save(true)) {
+      publishAfterSave.current = false;
+      await drafts?.publishNow(currentBranch);
+    }
   });
 
   const onCopy = useEventCallback(() => {
@@ -245,12 +265,12 @@ function ItemPageInner(
       }
       if (isHotkey('mod+s', event)) {
         event.preventDefault();
-        onUpdate();
+        save(false);
       }
     };
     document.addEventListener('keydown', listener);
     return () => document.removeEventListener('keydown', listener);
-  }, [updateResult.kind, onUpdate]);
+  }, [updateResult.kind, save]);
 
   return (
     <>
@@ -267,6 +287,22 @@ function ItemPageInner(
             onReset={props.onReset}
             viewHref={viewHref}
             previewHref={previewHref}
+            saveButton={
+              isDraftsOnly(config) ? (
+                <SaveSplitButton
+                  formID={formID}
+                  isDisabled={isSavingDisabled}
+                  onSave={() => save(false)}
+                  onPublishNow={onPublishNow}
+                  page={{
+                    collection,
+                    slug: itemSlug,
+                    state: props.state,
+                    initialFiles: props.initialFiles,
+                  }}
+                />
+              ) : undefined
+            }
             deleteDialog={
               isDraftsOnly(config) ? (
                 <DeletePageDialog
@@ -295,7 +331,7 @@ function ItemPageInner(
           onSubmit={(event: FormEvent) => {
             if (event.target !== event.currentTarget) return;
             event.preventDefault();
-            onUpdate();
+            save(false);
           }}
         >
           <FormForEntry
@@ -327,6 +363,10 @@ function ItemPageInner(
                 });
                 if (hasUpdated && slug !== itemSlug) {
                   router.replace(itemBasePath + encodeURIComponent(slug));
+                }
+                if (hasUpdated && publishAfterSave.current) {
+                  publishAfterSave.current = false;
+                  await drafts?.publishNow(newBranch);
                 }
               }}
               reason={updateResult.reason}
@@ -580,6 +620,7 @@ function HeaderActions(props: {
   previewHref?: string;
   viewHref?: string;
   deleteDialog?: ReactElement;
+  saveButton?: ReactElement;
 }) {
   let {
     formID,
@@ -741,14 +782,16 @@ function HeaderActions(props: {
           </Item>
         )}
       </ActionGroup>
-      <Button
-        form={formID}
-        isDisabled={isLoading || (!!draftCopy && !hasChanged)}
-        prominence="high"
-        type="submit"
-      >
-        {draftCopy?.save ?? stringFormatter.format('save')}
-      </Button>
+      {props.saveButton ?? (
+        <Button
+          form={formID}
+          isDisabled={isLoading || (!!draftCopy && !hasChanged)}
+          prominence="high"
+          type="submit"
+        >
+          {draftCopy?.save ?? stringFormatter.format('save')}
+        </Button>
+      )}
       <DialogContainer onDismiss={() => setDeleteAlertOpen(false)}>
         {deleteAlertIsOpen &&
           (props.deleteDialog ?? (

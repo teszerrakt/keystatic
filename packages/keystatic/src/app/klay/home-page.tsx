@@ -23,6 +23,7 @@ import { Draft, draftStatus } from './draft-status';
 import { ago, pageFromCommit } from './pages';
 import { useMenuSetup } from './menu-sections-data';
 import { useLanguages } from './pages-data';
+import { isPublishNow } from './publish-now';
 import { humanize } from './review';
 
 const RecentlyPublished = gql`
@@ -37,6 +38,7 @@ const RecentlyPublished = gql`
         nodes {
           id
           title
+          body
           mergedAt
           headRefName
           author {
@@ -242,13 +244,16 @@ export function HomePage() {
               </Text>
             ) : (
               published.map(pr => (
-                <Flex key={pr.id} gap="regular" wrap>
-                  <Text weight="medium">{pr.title}</Text>
-                  <Text color="neutralSecondary">
-                    {[pr.author?.login, ago(pr.mergedAt ?? undefined, now)]
-                      .filter(Boolean)
-                      .join(' · ')}
-                  </Text>
+                <Flex key={pr.id} alignItems="center" gap="regular">
+                  <Flex direction="column" gap="small" flex minWidth={0}>
+                    <Text weight="medium">{pr.title}</Text>
+                    <Text size="small" color="neutralSecondary">
+                      {[pr.author?.login, ago(pr.mergedAt ?? undefined, now)]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                  </Flex>
+                  {isPublishNow(pr.body) && <Badge>No preview</Badge>}
                 </Flex>
               ))
             )}
