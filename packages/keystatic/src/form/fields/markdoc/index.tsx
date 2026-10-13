@@ -19,6 +19,7 @@ import {
   MDXEditorOptions,
   MarkdocEditorOptions,
   editorOptionsToConfig,
+  libraryConfig,
 } from './config';
 import { collectDirectoriesUsedInSchema } from '../../../app/tree-key';
 import { object } from '../object';
@@ -26,6 +27,11 @@ import { fixPath } from '../../../app/path-utils';
 import type { XmlFragment } from 'yjs';
 import { createMarkdocConfig } from './markdoc-config';
 import { FieldDataError } from '../error';
+
+// Plus reads the image directory and public path from the field.
+export type WithImageLibrary = {
+  image: ReturnType<typeof libraryConfig>;
+};
 
 const textDecoder = new TextDecoder();
 const textEncoder = new TextEncoder();
@@ -98,6 +104,7 @@ export function markdoc({
       return value;
     },
     directories: getDirectoriesForEditorField(components, config),
+    image: libraryConfig(config),
     serialize(value, { slug }) {
       const out = serializeFromEditorState(value, slug);
       return {
@@ -133,7 +140,8 @@ export declare namespace markdoc {
     EditorState,
     EditorState,
     { node: MarkdocNode }
-  >;
+  > &
+    WithImageLibrary;
 }
 
 markdoc.createMarkdocConfig = createMarkdocConfig;
@@ -274,6 +282,7 @@ export function mdx({
       return value;
     },
     directories: getDirectoriesForEditorField(components, config),
+    image: libraryConfig(config),
     serialize(value, { slug }) {
       const out = serializeFromEditorStateMDX(value, slug);
       return {
@@ -305,7 +314,8 @@ export function mdx({
 }
 
 export declare namespace mdx {
-  type Field = ContentFormField<EditorState, EditorState, string>;
+  type Field = ContentFormField<EditorState, EditorState, string> &
+    WithImageLibrary;
 }
 
 mdx.inline = function mdx({

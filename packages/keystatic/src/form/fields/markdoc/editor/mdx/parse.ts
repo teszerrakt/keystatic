@@ -7,6 +7,7 @@ import {
 import { EditorSchema } from '../schema';
 import { fixPath } from '../../../../../app/path-utils';
 import { getSrcPrefixForImageBlock } from '../images';
+import { libraryImageNode } from '../image-library';
 import { Nodes, PhrasingContent, Definition } from 'mdast';
 import { visit } from 'unist-util-visit';
 import { MdxJsxAttributeValueExpression, mdxToMarkdown } from 'mdast-util-mdx';
@@ -423,12 +424,13 @@ function markdocNodeToProseMirrorNode(
     const prefix = getSrcPrefixForImageBlock(schema.config, getState().slug);
     const fullFilename = decodeURI(data.url);
     const filename = fullFilename.slice(prefix.length);
-    const content = (
-      typeof schema.config.image === 'object' &&
-      typeof schema.config.image.directory === 'string'
-        ? getState().otherFiles.get(fixPath(schema.config.image.directory))
-        : getState().extraFiles
-    )?.get(filename);
+    const content = fullFilename.startsWith(prefix)
+      ? (typeof schema.config.image === 'object' &&
+        typeof schema.config.image.directory === 'string'
+          ? getState().otherFiles.get(fixPath(schema.config.image.directory))
+          : getState().extraFiles
+        )?.get(filename)
+      : undefined;
 
     if (content && schema.nodes.image) {
       return schema.nodes.image.createChecked({
@@ -438,6 +440,14 @@ function markdocNodeToProseMirrorNode(
         filename,
       });
     }
+    const library = libraryImageNode(
+      schema,
+      fullFilename,
+      prefix,
+      node.alt ?? undefined,
+      data.title
+    );
+    if (library) return library;
     return schema.schema.text(
       `![${node.alt || ''}](${data.url || ''}${
         data.title ? ` "${data.title}"` : ''

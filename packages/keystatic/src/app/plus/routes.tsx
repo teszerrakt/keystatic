@@ -1,13 +1,22 @@
 import { Config } from '../../config';
 import { isDraftsOnly } from './drafts';
 import { HomePage } from './home-page';
+import { ImagesPage } from './images-page';
 import { PagesPage } from './pages-page';
 import { ReviewPage } from './review-page';
 import { menuSetup } from './menu-sections-data';
 import { MenuSectionsPage } from './sections-page';
 
+export const PLUS_PAGES = [
+  'publish',
+  'pages',
+  'menu-sections',
+  'images',
+] as const;
+export type PlusPage = (typeof PLUS_PAGES)[number];
+
 type Params = {
-  plus?: 'publish' | 'pages' | 'menu-sections';
+  plus?: PlusPage;
   collection?: string;
   kind?: string;
   singleton?: string;
@@ -19,6 +28,7 @@ export function plusRoute(config: Config, params: Params) {
   if (params.plus === 'pages') return <PagesPage />;
   if (!isDraftsOnly(config)) return null;
   if (params.plus === 'menu-sections') return <MenuSectionsPage />;
+  if (params.plus === 'images') return <ImagesPage />;
   if (params.singleton && params.singleton === menuSetup(config)?.singleton) {
     return <MenuSectionsPage />;
   }

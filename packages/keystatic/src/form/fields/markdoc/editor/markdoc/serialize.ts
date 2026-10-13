@@ -2,6 +2,7 @@ import { Ast, Node as MarkdocNode, NodeType } from '#markdoc';
 import { Fragment, Mark, Node as ProseMirrorNode } from 'prosemirror-model';
 import { EditorSchema, getEditorSchema } from '../schema';
 import { getSrcPrefixForImageBlock } from '../images';
+import { librarySrc } from '../image-library';
 import { fixPath } from '../../../../../app/path-utils';
 import { internalToSerialized } from '../props-serialization';
 import { textblockChildren } from '../serialize-inline';
@@ -49,6 +50,14 @@ function getLeafContent(
   const { schema } = state;
   if (node.type === schema.nodes.hard_break) {
     return new Ast.Node('hardbreak');
+  }
+  const library = librarySrc(state.schema.config, node);
+  if (node.type === schema.nodes.image && library) {
+    return new Ast.Node('image', {
+      src: library,
+      alt: node.attrs.alt,
+      title: node.attrs.title,
+    });
   }
   if (node.type === schema.nodes.image) {
     const { src, filename } = node.attrs;

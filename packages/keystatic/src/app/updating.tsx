@@ -119,8 +119,12 @@ export function useUpsertItem(args: {
   currentLocalTreeKey: string | undefined;
   basePath: string;
   slug: { value: string; field: string } | undefined;
-  /** Plus fork: other files to write in the same commit. */
-  extras?: { files(): { path: string; contents: Uint8Array }[] };
+  /** Plus fork: other files to write in the same commit, and files the
+   * save must not delete although the entry no longer lists them. */
+  extras?: {
+    files(): { path: string; contents: Uint8Array }[];
+    kept?(path: string): boolean;
+  };
 }) {
   const [state, setState] = useState<
     | { kind: 'idle' }
@@ -188,7 +192,9 @@ export function useUpsertItem(args: {
         );
 
         const filesToDelete = new Set(
-          args.initialFiles?.map(x => pathPrefix + x)
+          args.initialFiles
+            ?.filter(x => !args.extras?.kept?.(x))
+            .map(x => pathPrefix + x)
         );
         for (const file of additions) {
           filesToDelete.delete(file.path);
