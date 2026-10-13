@@ -19,7 +19,8 @@ import { clientSideValidateProp } from '../form/errors';
 import { useEventCallback } from '../form/fields/document/DocumentEditor/ui-utils';
 
 import { CreateBranchDuringUpdateDialog } from './ItemPage';
-import { BranchDialogContainer } from './plus/drafts';
+import { BranchDialogContainer, saveMode } from './plus/drafts';
+import { showPublished } from './plus/draft-data';
 import { PageFormProvider, useCommitExtras } from './plus/page-form';
 import { useCreateBreadcrumbs } from './plus/page-title';
 import { translatedState, translateFrom } from './plus/translate';
@@ -455,6 +456,7 @@ function CreateItemInner(props: {
   const stringFormatter = useLocalizedStringFormatter(l10nMessages);
   const router = useRouter();
   const config = useConfig();
+  const currentBranch = useCurrentBranch();
 
   const { collectionConfig, schema } = useCollection(props.collection);
 
@@ -484,7 +486,18 @@ function CreateItemInner(props: {
     if (await props.createItem()) {
       const slug = getSlugFromState(collectionConfig, props.state);
       router.push(`${collectionPath}/item/${encodeURIComponent(slug)}`);
-      toastQueue.positive('Entry created', { timeout: 5000 }); // TODO: l10n
+      if (saveMode(config) === 'direct') {
+        showPublished(config, [
+          'branch',
+          currentBranch,
+          'collection',
+          props.collection,
+          'item',
+          slug,
+        ]);
+      } else {
+        toastQueue.positive('Entry created', { timeout: 5000 }); // TODO: l10n
+      }
     }
   };
 

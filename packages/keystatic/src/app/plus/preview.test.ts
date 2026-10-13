@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 
 import { collection, config, Config } from '../../config';
 import { fields } from '../../form/api';
-import { previewHrefFor } from './draft-data';
+import { previewHrefFor, singletonPreviewHrefFor } from './draft-data';
 import type { Draft } from './draft-status';
 import {
   autoPreview,
@@ -166,5 +166,38 @@ test('a reported address replaces the pattern host and keeps the page path', () 
   ).toBe('https://p-abc123-team.vercel.app/help/lorem-ipsum/');
   expect(previewHrefFor(site, draft, params)).toBe(
     'https://p-git-draft-lorem-ipsum-team.vercel.app/help/lorem-ipsum/'
+  );
+});
+
+test('a singleton preview uses the reported address too, keeping its path', () => {
+  const site: Config = {
+    storage: {
+      kind: 'github',
+      repo: 'o/r',
+      drafts: true,
+      draftPreviewUrl: 'https://p-git-{alias}-team.vercel.app',
+    },
+  };
+  const draft: Draft = {
+    name: branch,
+    refId: 'r',
+    author: undefined,
+    savedAt: undefined,
+    build: 'ready',
+    checks: 'ready',
+    alias: 'draft-lorem-ipsum',
+    failureUrl: undefined,
+    pr: undefined,
+  };
+  const template = 'https://p-git-{alias}-team.vercel.app/settings/';
+  expect(
+    singletonPreviewHrefFor(
+      site,
+      { ...draft, previewUrl: 'https://p-abc123-team.vercel.app' },
+      template
+    )
+  ).toBe('https://p-abc123-team.vercel.app/settings/');
+  expect(singletonPreviewHrefFor(site, draft, template)).toBe(
+    'https://p-git-draft-lorem-ipsum-team.vercel.app/settings/'
   );
 });
