@@ -70,15 +70,17 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           DRY_RUN: ${{ steps.version.outputs.dry_run }}
 
+      # npm's registry cache can take several minutes to show a new version.
       - name: Check the registry
         if: steps.version.outputs.dry_run != 'true'
         run: |
           ui="$(node -p "require('./design-system/pkg/package.json').version")-${VERSION#*-}"
-          for i in $(seq 1 30); do
-            npm view "@teszerrakt/keystatic-core@$VERSION" version --prefer-online && \
-              npm view "@teszerrakt/keystar-ui@$ui" version --prefer-online && exit 0
-            sleep 10
+          live() { curl -fsS -o /dev/null "https://registry.npmjs.org/@teszerrakt%2f$1/$2"; }
+          for i in $(seq 1 60); do
+            live keystatic-core "$VERSION" && live keystar-ui "$ui" && exit 0
+            sleep 20
           done
+          echo "Not on the registry after 20 minutes: keystatic-core@$VERSION, keystar-ui@$ui"
           exit 1
         env:
           VERSION: ${{ steps.version.outputs.version }}
