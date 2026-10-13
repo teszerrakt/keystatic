@@ -1,5 +1,9 @@
 import { useRouter } from './router';
-import { fillPreviewUrl } from './plus/draft-data';
+import {
+  fillPreviewUrl,
+  singletonPreviewHrefFor,
+  useDraftsContext,
+} from './plus/draft-data';
 import { BranchDialogContainer } from './plus/drafts';
 import {
   FormEvent,
@@ -96,10 +100,19 @@ function SingletonPageInner(
 
   const router = useRouter();
 
+  const draft = useDraftsContext()?.current;
   const previewHref = useMemo(() => {
     if (!singletonConfig.previewUrl) return undefined;
+    // In a draft, the host may have reported the preview's own address.
+    if (draft) {
+      return singletonPreviewHrefFor(
+        props.config,
+        draft,
+        singletonConfig.previewUrl
+      );
+    }
     return fillPreviewUrl(singletonConfig.previewUrl, currentBranch);
-  }, [currentBranch, singletonConfig.previewUrl]);
+  }, [currentBranch, singletonConfig.previewUrl, draft, props.config]);
   const isGitHub = isGitHubConfig(props.config) || isCloudConfig(props.config);
   const formatInfo = getSingletonFormat(props.config, props.singleton);
   const singletonExists = !!props.initialState;

@@ -11,6 +11,8 @@ import {
 } from 'react';
 import { useClient, useQuery } from 'urql';
 
+import { toastQueue } from '@keystar/ui/toast';
+
 import { Config } from '../../config';
 import { useRouter } from '../router';
 import { useConfig } from '../shell/context';
@@ -465,26 +467,52 @@ function pageUrl(
   return /^https?:/.test(url) ? url : undefined;
 }
 
-export function previewHrefFor(config: Config, draft: Draft, params: string[]) {
+// Maps a preview URL template to the draft's address: the address the host
+// reported, keeping the path after `draftPreviewUrl`, else the template with
+// {alias} and {branch} filled in.
+function draftFill(config: Config, draft: Draft) {
   if (config.storage.kind === 'local') return undefined;
   const { draftPreviewUrl } = config.storage;
-  // The host reported the preview's own address: keep the page's path from
-  // the `draftPreviewUrl` pattern and put that address in front.
-  if (draft.previewUrl) {
-    const origin = draft.previewUrl.replace(/\/+$/, '');
-    const page =
-      draftPreviewUrl &&
-      pageUrl(config, params, t =>
-        t.startsWith(draftPreviewUrl)
-          ? origin + t.slice(draftPreviewUrl.length)
-          : t
-      );
-    return page?.startsWith(origin) ? page : origin;
+  const origin = draft.previewUrl?.replace(/\/+$/, '');
+  if (origin) {
+    return (t: string) =>
+      draftPreviewUrl && t.startsWith(draftPreviewUrl)
+        ? origin + t.slice(draftPreviewUrl.length)
+        : origin;
   }
   if (!draftPreviewUrl) return undefined;
-  const fill = (t: string) =>
+  return (t: string) =>
     t.replace('{alias}', draft.alias).replace('{branch}', draft.name);
-  return pageUrl(config, params, fill) ?? fill(draftPreviewUrl);
+}
+
+export function previewHrefFor(config: Config, draft: Draft, params: string[]) {
+  const fill = draftFill(config, draft);
+  if (!fill || config.storage.kind === 'local') return undefined;
+  return (
+    pageUrl(config, params, fill) ?? fill(config.storage.draftPreviewUrl ?? '')
+  );
+}
+
+export function singletonPreviewHrefFor(
+  config: Config,
+  draft: Draft,
+  template: string
+) {
+  const url = draftFill(config, draft)?.(template);
+  return url && /^https?:/.test(url) ? url : undefined;
+}
+
+// Without drafts a save is a publish: say so, and link the live page.
+export function showPublished(config: Config, params: string[]) {
+  const live = liveHrefFor(config, params);
+  toastQueue.positive("Published. It's live once the site finishes building.", {
+    timeout: 8000,
+    ...(live && {
+      actionLabel: 'View live page',
+      onAction: () => window.open(live, '_blank', 'noopener,noreferrer'),
+      shouldCloseOnAction: true,
+    }),
+  });
 }
 
 // The live page is the preview page with the site's own address in front.

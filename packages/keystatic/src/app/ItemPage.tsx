@@ -58,11 +58,13 @@ import {
   BranchDialogContainer,
   hasDrafts,
   hasPlusUi,
+  saveMode,
   useDraftSaveCopy,
 } from './plus/drafts';
 import {
   fillPreviewUrl,
   previewHrefFor,
+  showPublished,
   useDraftsContext,
 } from './plus/draft-data';
 import { DeletePageDialog } from './plus/page-delete-dialog';
@@ -203,6 +205,16 @@ function ItemPageInner(
     }
     const slug = getSlugFromState(collectionConfig, props.state);
     const hasUpdated = await parentOnUpdate();
+    if (hasUpdated && saveMode(config) === 'direct') {
+      showPublished(config, [
+        'branch',
+        currentBranch,
+        'collection',
+        collection,
+        'item',
+        slug,
+      ]);
+    }
     if (hasUpdated && slug !== itemSlug) {
       replace(
         `${props.basePath}/collection/${encodeURIComponent(
