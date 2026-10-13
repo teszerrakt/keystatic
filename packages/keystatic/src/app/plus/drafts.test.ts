@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { config } from '../../config';
-import { hasDrafts } from './drafts';
+import { hasDrafts, saveMode } from './drafts';
 
 test('drafts are off unless the storage config sets drafts: true', () => {
   const github = { kind: 'github', repo: 'owner/repo' } as const;
@@ -25,4 +25,13 @@ test('the old draftsOnly key is a type error and no longer turns drafts on', () 
     },
   });
   expect(hasDrafts(old)).toBe(false);
+});
+
+test('without drafts the fork editor stays and saves go live; local storage is upstream', () => {
+  const github = { kind: 'github', repo: 'owner/repo' } as const;
+  expect(saveMode(config({ storage: { ...github, drafts: true } }))).toBe(
+    'drafts'
+  );
+  expect(saveMode(config({ storage: github }))).toBe('direct');
+  expect(saveMode(config({ storage: { kind: 'local' } }))).toBe(null);
 });

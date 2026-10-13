@@ -1,5 +1,5 @@
 import { Config } from '../../config';
-import { hasDrafts } from './drafts';
+import { hasDrafts, hasPlusUi } from './drafts';
 import { HomePage } from './home-page';
 import { ImagesPage } from './images-page';
 import { PagesPage } from './pages-page';
@@ -24,9 +24,11 @@ type Params = {
 
 // Pages the fork adds, or swaps in for Keystatic's dashboard and collection lists.
 export function plusRoute(config: Config, params: Params) {
-  if (params.plus === 'publish') return <ReviewPage />;
+  if (!hasPlusUi(config)) return null;
+  if (params.plus === 'publish') {
+    return hasDrafts(config) ? <ReviewPage /> : null;
+  }
   if (params.plus === 'pages') return <PagesPage />;
-  if (!hasDrafts(config)) return null;
   if (params.plus === 'menu-sections') return <MenuSectionsPage />;
   if (params.plus === 'images') return <ImagesPage />;
   if (params.singleton && params.singleton === menuSetup(config)?.singleton) {

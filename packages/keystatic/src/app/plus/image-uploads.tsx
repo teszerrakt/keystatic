@@ -11,6 +11,7 @@ import { css, tokenSchema } from '@keystar/ui/style';
 import { Text } from '@keystar/ui/typography';
 
 import { useObjectURL } from '../../form/fields/image/ui';
+import { useDraftsContext } from './draft-data';
 import { ACCEPTED, contentType, UploadPlan, UPLOAD_HINT } from './images';
 
 export type UploadStatus =
@@ -106,13 +107,17 @@ export function UploadRow(props: {
   onChoose: (choice: ClashChoice) => void;
 }) {
   const { upload } = props;
+  const drafts = useDraftsContext();
   const status: Record<UploadStatus, [string | undefined, Tone]> = {
     refused: [upload.message, 'critical'],
     failed: [upload.message, 'critical'],
     clash: [props.usedBy, 'caution'],
     ready: ['Waiting…', 'neutralSecondary'],
-    saving: ['Saving to your draft…', 'neutralSecondary'],
-    saved: ['Saved to your draft', 'neutralSecondary'],
+    saving: [
+      drafts ? 'Saving to your draft…' : 'Publishing…',
+      'neutralSecondary',
+    ],
+    saved: [drafts ? 'Saved to your draft' : 'Published', 'neutralSecondary'],
     skipped: ['Skipped', 'neutralSecondary'],
   };
   const [line, tone] = status[upload.status];

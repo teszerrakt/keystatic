@@ -57,6 +57,7 @@ import {
   AutoDraftBranchDialog,
   BranchDialogContainer,
   hasDrafts,
+  hasPlusUi,
   useDraftSaveCopy,
 } from './plus/drafts';
 import { fillPreviewUrl, useDraftsContext } from './plus/draft-data';
@@ -304,7 +305,7 @@ function ItemPageInner(
               ) : undefined
             }
             deleteDialog={
-              hasDrafts(config) ? (
+              hasPlusUi(config) ? (
                 <DeletePageDialog
                   slug={itemSlug}
                   collection={collection}
@@ -1154,7 +1155,7 @@ function ItemPageShell(
   return (
     <PageRoot containerWidth={containerWidthForEntryLayout(collectionConfig)}>
       <PageHeader>
-        {hasDrafts(props.config) ? (
+        {hasPlusUi(props.config) ? (
           <PageTitle
             collection={props.collection}
             slug={props.itemSlug}
