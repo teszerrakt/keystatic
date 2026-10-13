@@ -10,8 +10,6 @@
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-2F4AD0"></a>
 </p>
 
-# Keystatic Plus
-
 A fork of [Keystatic](https://github.com/Thinkmill/keystatic), the git-based CMS by Thinkmill, that adds an editor for writers. Keystatic's core is Thinkmill's work; Plus builds on it and tracks its releases.
 
 **Latest:** [`0.6.9-plus.1.0.0`](https://github.com/teszerrakt/keystatic/releases/tag/v0.6.9-plus.1.0.0), on Keystatic 0.6.9 · [Sandbox site](https://keystatic-plus-sandbox.vercel.app) ([source](https://github.com/teszerrakt/keystatic-plus-sandbox))
