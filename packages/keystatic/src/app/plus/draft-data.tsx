@@ -23,24 +23,10 @@ import {
 } from '../shell/data';
 import { useViewer } from '../shell/viewer-data';
 import { draftPrefix, hasDrafts } from './drafts';
-import {
-  Build,
-  Draft,
-  DraftStatus,
-  draftStatus,
-  draftTitle,
-} from './draft-status';
+import { previewAlias, previewPlugin, runState } from './preview';
+import { Draft, DraftStatus, draftStatus, draftTitle } from './draft-status';
 import { saveHandoff } from './new-draft';
 import { isPublishNow, publishNowNote } from './publish-now';
-
-// Cloudflare names a branch preview after the branch: lowercase, anything
-// else becomes a dash. Used until the build's own check run names it.
-export function previewAlias(branch: string) {
-  return branch
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 export function fillPreviewUrl(template: string, branch: string, slug = '') {
   return template
@@ -81,6 +67,19 @@ const DraftsQuery = gql`
                       conclusion
                       detailsUrl
                     }
+                  }
+                }
+              }
+              deployments(first: 5) {
+                nodes {
+                  id
+                  environment
+                  createdAt
+                  latestStatus {
+                    id
+                    state
+                    environmentUrl
+                    logUrl
                   }
                 }
               }
@@ -202,18 +201,6 @@ type CheckRun = {
   detailsUrl: string | null;
 };
 
-const runState = (runs: CheckRun[]): Build =>
-  runs.length === 0
-    ? 'none'
-    : runs.some(r => r.status !== 'COMPLETED')
-    ? 'building'
-    : runs.every(r =>
-        ['SUCCESS', 'NEUTRAL', 'SKIPPED'].includes(r.conclusion ?? '')
-      )
-    ? 'ready'
-    : 'failed';
-
-const isHostBuild = (run: CheckRun) => /^Workers Builds/.test(run.name);
 const failed = (run: CheckRun) =>
   run.status === 'COMPLETED' &&
   !['SUCCESS', 'NEUTRAL', 'SKIPPED'].includes(run.conclusion ?? '');
@@ -250,10 +237,24 @@ function useDraftList(head: string | undefined, branch: string) {
         commit?.checkSuites?.nodes?.flatMap(
           s => s?.checkRuns?.nodes?.flatMap(r => (r ? [r] : [])) ?? []
         ) ?? [];
-      const hostRuns = runs.filter(isHostBuild);
-      const fromCheck = hostRuns
-        .map(r => r.detailsUrl?.match(/\/previews\/([^/]+)\//)?.[1])
-        .find(Boolean);
+      const preview = previewPlugin(config.storage).read({
+        branch: ref.name,
+        checkRuns: runs,
+        deployments:
+          commit?.deployments?.nodes?.flatMap(d =>
+            d
+              ? [
+                  {
+                    environment: d.environment,
+                    createdAt: d.createdAt,
+                    state: d.latestStatus?.state,
+                    environmentUrl: d.latestStatus?.environmentUrl,
+                    logUrl: d.latestStatus?.logUrl,
+                  },
+                ]
+              : []
+          ) ?? [],
+      });
       const pr = ref.associatedPullRequests?.nodes?.[0];
       drafts.push({
         name: ref.name,
@@ -261,10 +262,12 @@ function useDraftList(head: string | undefined, branch: string) {
         author: commit?.author?.user?.login,
         savedAt: commit?.committedDate,
         lastSave: commit?.messageHeadline,
-        build: runState(hostRuns),
+        build: preview.build,
         checks: runState(runs),
-        alias: fromCheck ?? previewAlias(ref.name),
-        failureUrl: runs.find(failed)?.detailsUrl ?? undefined,
+        alias: preview.alias ?? previewAlias(ref.name),
+        previewUrl: preview.url,
+        failureUrl:
+          preview.failureUrl ?? runs.find(failed)?.detailsUrl ?? undefined,
         pr: pr
           ? {
               id: pr.id,
@@ -277,7 +280,7 @@ function useDraftList(head: string | undefined, branch: string) {
     }
     drafts.sort((a, b) => (b.savedAt ?? '').localeCompare(a.savedAt ?? ''));
     return { drafts, published };
-  }, [result.data, prefix]);
+  }, [result.data, prefix, config.storage]);
 
   // A save moves the head; reload so the new draft and its build show up.
   useEffect(() => {
@@ -463,12 +466,25 @@ function pageUrl(
 }
 
 export function previewHrefFor(config: Config, draft: Draft, params: string[]) {
-  if (config.storage.kind === 'local' || !config.storage.draftPreviewUrl) {
-    return undefined;
+  if (config.storage.kind === 'local') return undefined;
+  const { draftPreviewUrl } = config.storage;
+  // The host reported the preview's own address: keep the page's path from
+  // the `draftPreviewUrl` pattern and put that address in front.
+  if (draft.previewUrl) {
+    const origin = draft.previewUrl.replace(/\/+$/, '');
+    const page =
+      draftPreviewUrl &&
+      pageUrl(config, params, t =>
+        t.startsWith(draftPreviewUrl)
+          ? origin + t.slice(draftPreviewUrl.length)
+          : t
+      );
+    return page?.startsWith(origin) ? page : origin;
   }
+  if (!draftPreviewUrl) return undefined;
   const fill = (t: string) =>
     t.replace('{alias}', draft.alias).replace('{branch}', draft.name);
-  return pageUrl(config, params, fill) ?? fill(config.storage.draftPreviewUrl);
+  return pageUrl(config, params, fill) ?? fill(draftPreviewUrl);
 }
 
 // The live page is the preview page with the site's own address in front.

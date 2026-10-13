@@ -60,7 +60,11 @@ import {
   hasPlusUi,
   useDraftSaveCopy,
 } from './plus/drafts';
-import { fillPreviewUrl, useDraftsContext } from './plus/draft-data';
+import {
+  fillPreviewUrl,
+  previewHrefFor,
+  useDraftsContext,
+} from './plus/draft-data';
 import { DeletePageDialog } from './plus/page-delete-dialog';
 import { PageFormProvider, useCommitExtras } from './plus/page-form';
 import { PageTitle, pageTitleFrom } from './plus/page-title';
@@ -154,7 +158,7 @@ function ItemPageInner(
   const currentBranch = useCurrentBranch();
   const repoInfo = useRepoInfo();
   const [forceValidation, setForceValidation] = useState(false);
-  const previewHref = collectionConfig.previewUrl
+  const branchPreviewHref = collectionConfig.previewUrl
     ? fillPreviewUrl(collectionConfig.previewUrl, currentBranch, props.itemSlug)
     : undefined;
   const { push, replace } = router;
@@ -182,6 +186,10 @@ function ItemPageInner(
     );
   };
   const drafts = useDraftsContext();
+  // In a draft, the host may have reported the preview's own address.
+  const previewHref = drafts?.current
+    ? previewHrefFor(config, drafts.current, router.params) ?? branchPreviewHref
+    : branchPreviewHref;
   const isSavingDisabled =
     updateResult.kind === 'loading' ||
     !props.hasChanged ||
