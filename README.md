@@ -128,5 +128,5 @@ pnpm test
 
 ## License
 
-MIT, as upstream. Keystatic is copyright (c) 2023 [Thinkmill Labs](https://www.thinkmill.com.au/labs) Pty Ltd. See [`LICENSE`](LICENSE).
+MIT, as upstream. Keystatic is copyright (c) [Thinkmill Labs](https://www.thinkmill.com.au/labs) Pty Ltd; the Keystatic Plus changes are copyright (c) 2026 Zaky Syihab Hatmoko. See [`LICENSE`](LICENSE).
 <!-- prettier-ignore-end -->

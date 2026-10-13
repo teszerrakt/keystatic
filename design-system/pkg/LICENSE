@@ -1,6 +1,7 @@
 This project is licensed under a combination of the MIT License and the Apache License 2.0.
 
 - The MIT License applies to any original code created by Thinkmill Labs Pty Ltd.
+- The MIT License also applies to changes made in Keystatic Plus by Zaky Syihab Hatmoko.
 - The Apache License 2.0 applies to derivative works inspired by or based on Adobe's React Spectrum.
 
 Please see the full license texts below for details.
@@ -9,6 +10,7 @@ Please see the full license texts below for details.
 MIT License
 
 Copyright (c) Thinkmill Labs Pty Ltd
+Copyright (c) 2026 Zaky Syihab Hatmoko (Keystatic Plus changes)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
