@@ -1,5 +1,5 @@
 <!-- prettier-ignore-start -->
-# Keystatic plus
+# Keystatic Plus
 
 A fork of [Keystatic](https://github.com/Thinkmill/keystatic), the git-based CMS by Thinkmill, that adds an editor for writers. Keystatic's core is Thinkmill's work; plus builds on it and tracks its releases.
 
