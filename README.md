@@ -124,7 +124,7 @@ pnpm test
 - `plus` is the fork's branch; `main` mirrors Thinkmill's `main`, and upstream releases merge from there into `plus`.
 - Fork code lives in `packages/keystatic/src/app/plus/`; upstream files only get small hooks, so upstream merges stay small.
 - Every pull request publishes a build to [pkg.pr.new](https://pkg.pr.new). Every pull request also shows proof of the change working: see [`AGENTS.md`](AGENTS.md).
-- `node scripts/plus-pack.mjs <version>` packs a release of both packages.
+- Releasing: push a tag like `v0.6.9-plus.1.1.0` on `plus`. The **Release (Plus)** workflow builds, packs and publishes both packages to npm with trusted publishing. Run it by hand with `dry_run` to check a version first. `node scripts/plus-pack.mjs <version>` packs locally.
 
 ## License
 
